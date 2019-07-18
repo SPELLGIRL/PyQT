@@ -11,7 +11,7 @@ import select
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
 from socket import socket, AF_INET, SOCK_STREAM
-from jim.utils import Message, receive, accepted, success, error
+from jim.utils import Message, receive, accepted, success, error, forbidden
 from jim.config import *
 from log.config import server_logger
 from decorators import Log
@@ -24,7 +24,7 @@ class Dispatcher:
         'sock', 'user_name', '__logger', '__handler', '__in', '__out', 'status'
     )
 
-    def __init__(self, sock, handler):
+    def __init__(self, sock, handler, names):
         self.sock = sock
         self.user_name = None
         self.__logger = server_logger
@@ -34,7 +34,7 @@ class Dispatcher:
 
         self.status = False
         self.receive()
-        self.process()
+        self.process(names=names)
         self.release()
 
     def receive(self):
@@ -75,6 +75,8 @@ class Handler:
     @staticmethod
     def run_action(request, names):
         if request.action == PRESENCE:
+            if request.sender in names:
+                return forbidden()
             return success()
         elif request.action == SEND_MSG:
             contacts = request.destination.replace(' ', '').split(',')
@@ -139,7 +141,7 @@ class Server:
             while True:
                 try:
                     client, address = self.__sock.accept()
-                    dispatcher = Dispatcher(client, self.__handler)
+                    dispatcher = Dispatcher(client, self.__handler, names=self.__name_socket)
                 except OSError:
                     pass
                 else:

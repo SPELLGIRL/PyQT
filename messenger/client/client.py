@@ -9,12 +9,12 @@
 - port ​-​ ​t​cp-порт ​​на ​с​ервере, ​​по ​у​молчанию ​​8000.
 """
 
-from random import randint
+
 from socket import socket, AF_INET, SOCK_STREAM
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP
-from exceptions import UsernameToLongError, ResponseCodeLenError, \
-    MandatoryKeyError, ResponseCodeError
+from exceptions import ResponseCodeLenError, MandatoryKeyError, \
+    ResponseCodeError
 from jim.config import *
 from jim.utils import Message, receive
 from decorators import Log
@@ -26,17 +26,22 @@ log_decorator = Log(client_logger)
 class Client:
     __slots__ = ('__logger', '__host', '__sock', '__user_name')
 
-    def __init__(self, address, user_name):
+    def __init__(self, address):
         self.__logger = client_logger
         self.__host = address
         self.__sock = socket(AF_INET, SOCK_STREAM)
-        self.__user_name = self.__validate_username(user_name)
+        self.__user_name = None
 
         self.__sock.settimeout(1)
 
     @property
     def user_name(self):
         return self.__user_name
+
+    @user_name.setter
+    def user_name(self, value):
+        if self.__user_name is None:
+            self.__user_name = value
 
     @property
     def logger(self):
@@ -45,22 +50,6 @@ class Client:
     @property
     def sock(self):
         return self.__sock
-
-    @staticmethod
-    def __validate_username(user_name):
-        while True:
-            if user_name == 'Гость' or not user_name:
-                user_name = input('Введите своё имя: ') or \
-                            f'Гость_{randint(1, 9999)}'
-                try:
-                    if len(user_name) > 25:
-                        raise UsernameToLongError
-                    break
-                except UsernameToLongError as ce:
-                    print(ce)
-            else:
-                break
-        return user_name
 
     def __check_presence(self):
         data = {

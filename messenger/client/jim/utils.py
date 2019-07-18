@@ -93,6 +93,13 @@ def accepted(**kwargs):
     return Message(data, **kwargs)
 
 
+def forbidden(**kwargs):
+    data = {
+        RESPONSE: FORBIDDEN
+    }
+    return Message(data, **kwargs)
+
+
 def receive(sock, logger):
     requests = []
     try:

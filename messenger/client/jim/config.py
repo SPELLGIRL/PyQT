@@ -35,6 +35,7 @@ BASIC_NOTICE = 100
 OK = 200
 ACCEPTED = 202
 WRONG_REQUEST = 400  # неправильный запрос/json объект
+FORBIDDEN = 403  # доступ запрещён
 SERVER_ERROR = 500
 
 # Кортеж из кодов ответов

@@ -4,11 +4,11 @@ from client import Client, parse_args
 
 def run():
     args = parse_args()
-    client = Client((args.addr, args.port), args.user)
+    client = Client((args.addr, args.port))
     if args.mode == 'gui':
         handler = Gui(client)
     else:
-        handler = Console(client)
+        handler = Console(client, args.user)
     if client.connect():
         handler.main()
 
