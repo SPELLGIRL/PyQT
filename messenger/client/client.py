@@ -117,6 +117,7 @@ def parse_args():
         '-m',
         '--mode',
         default='console',
+        type=str.lower,
         nargs='?',
         choices=['gui', 'console'],
         help='Mode: GUI, Console (default console)')
