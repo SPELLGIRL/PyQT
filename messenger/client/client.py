@@ -10,7 +10,7 @@
 """
 
 
-from socket import socket, AF_INET, SOCK_STREAM
+import socket
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP
 from exceptions import ResponseCodeLenError, MandatoryKeyError, \
@@ -19,20 +19,24 @@ from jim.config import *
 from jim.utils import Message, receive
 from decorators import Log
 from log.config import client_logger
+from metaclasses import ClientVerifier
+from descriptors import Port
 
 log_decorator = Log(client_logger)
 
 
-class Client:
-    __slots__ = ('__logger', '__host', '__sock', '__user_name')
+class Client(metaclass=ClientVerifier):
+    # __slots__ = ('__logger', '__host', '__sock', '__user_name')
+    port = Port()
 
     def __init__(self, address):
         self.__logger = client_logger
-        self.__host = address
-        self.__sock = socket(AF_INET, SOCK_STREAM)
+        self.__addr, self.__port = address
+        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__user_name = None
 
         self.__sock.settimeout(1)
+        super().__init__()
 
     @property
     def user_name(self):
@@ -78,7 +82,7 @@ class Client:
     def connect(self):
         result = False
         try:
-            self.__sock.connect(self.__host)
+            self.__sock.connect((self.__addr, self.__port))
             if not self.__check_presence():
                 raise ConnectionRefusedError
             info_msg = f'Клиент запущен ({self.user_name}).'
@@ -122,8 +126,8 @@ def parse_args():
         choices=['gui', 'console'],
         help='Mode: GUI, Console (default console)')
     result = parser.parse_args()
-    if result.port not in range(1024, 65535):
-        parser.error(
-            f'argument port: invalid choice: {result.port} (choose from 1024-65535)'
-        )
+    # if result.port not in range(1024, 65535):
+    #     parser.error(
+    #         f'argument port: invalid choice: {result.port} (choose from 1024-65535)'
+    #     )
     return result

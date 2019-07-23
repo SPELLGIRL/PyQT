@@ -10,11 +10,13 @@
 import select
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
-from socket import socket, AF_INET, SOCK_STREAM
+import socket
 from jim.utils import Message, receive, accepted, success, error, forbidden
 from jim.config import *
 from log.config import server_logger
 from decorators import Log
+from metaclasses import ServerVerifier
+from descriptors import Port
 
 log_decorator = Log(server_logger)
 
@@ -112,36 +114,40 @@ class Handler:
             return error('Действие недоступно')
 
 
-class Server:
-    __slots__ = (
-        '__logger', '__sock', '__logger', '__handler', '__client_sockets',
-        '__socket_dispatcher', '__name_socket', '__in', '__out'
-    )
+class Server(metaclass=ServerVerifier):
+    # __slots__ = (
+    #     '__logger', '__sock', '__logger', '__handler', '__client_sockets',
+    #     '__socket_dispatcher', '__name_socket', '__in', '__out'
+    # )
+    __port = Port()
 
     def __init__(self, address):
         self.__logger = server_logger
-        self.__sock = socket(AF_INET, SOCK_STREAM)
+        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__handler = Handler()
         self.__client_sockets = []
         self.__socket_dispatcher = {}
         self.__name_socket = {}
         self.__in = []
         self.__out = []
+        self.__addr, self.__port = address
 
-        self.__sock.bind(address)
+        self.__sock.bind((self.__addr, self.__port))
         self.__sock.listen(MAX_CONNECTIONS)
         self.__sock.settimeout(TIMEOUT)
 
         info_msg = f'Сервер запущен ({address[0] or "*"}:{address[1]}).'
         print(info_msg)
         self.__logger.info(info_msg)
+        super().__init__()
 
     def main(self):
         try:
             while True:
                 try:
                     client, address = self.__sock.accept()
-                    dispatcher = Dispatcher(client, self.__handler, names=self.__name_socket)
+                    dispatcher = Dispatcher(client, self.__handler,
+                                            names=self.__name_socket)
                 except OSError:
                     pass
                 else:
@@ -221,10 +227,10 @@ def parse_args():
         help='порт сервера в диапазоне от 1024 до 65535'
     )
     result = parser.parse_args()
-    if result.p not in range(1024, 65535):
-        parser.error(
-            f'argument -p: invalid choice: {result.p} (choose from 1024-65535)'
-        )
+    # if result.p not in range(1024, 65535):
+    #     parser.error(
+    #         f'argument -p: invalid choice: {result.p} (choose from 1024-65535)'
+    #     )
     return result
 
 
