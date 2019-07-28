@@ -1,3 +1,5 @@
+import os
+
 # Порт поумолчанию для сетевого ваимодействия
 DEFAULT_PORT = 8000
 # IP адрес по умолчанию для подключения клиента
@@ -10,3 +12,5 @@ MAX_PACKAGE_LENGTH = 1024
 ENCODING = 'utf-8'
 # Время ожидания
 TIMEOUT = 0.2
+# База данных
+DATABASE = f'sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.db")}'
