@@ -55,9 +55,9 @@ class Repository:
             query = query.filter(User.is_online == active)
         return [value for (value,) in query.all()]
 
-    def active_users_list(self):
-        query = self.session.query(User.name).filter(User.is_online).all()
-        return [value for (value,) in query]
+    # def active_users_list(self):
+    #     query = self.session.query(User.name).filter(User.is_online).all()
+    #     return [value for (value,) in query]
 
     def login_history(self, user_name=None):
         query = self.session.query(User.name,

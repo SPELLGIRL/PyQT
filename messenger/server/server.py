@@ -17,6 +17,7 @@ from log.config import server_logger
 from decorators import Log
 from metaclasses import ServerVerifier
 from descriptors import Port
+from db.repository import Repository
 
 log_decorator = Log(server_logger)
 
@@ -26,7 +27,7 @@ class Dispatcher:
         'sock', 'user_name', '__logger', '__handler', '__in', '__out', 'status'
     )
 
-    def __init__(self, sock, handler, names):
+    def __init__(self, sock, handler):
         self.sock = sock
         self.user_name = None
         self.__logger = server_logger
@@ -36,7 +37,7 @@ class Dispatcher:
 
         self.status = False
         self.receive()
-        self.process(names=names)
+        self.process()
         self.release()
 
     def receive(self):
@@ -45,12 +46,12 @@ class Dispatcher:
             raise Exception
         self.__in.extend(requests)
 
-    def process(self, names=''):
+    def process(self):
         while len(self.__in):
             request = self.__in.pop()
             if not request.sender:
                 request.sender = self.user_name
-            response = self.__handler.run_action(request, names)
+            response = self.__handler.run_action(request)
             if request.action == PRESENCE and response.response == OK:
                 self.user_name = request.sender
                 self.status = True
@@ -72,18 +73,19 @@ class Dispatcher:
 
 
 class Handler:
-    __slots__ = ()
+    def __init__(self, repository):
+        self.__repo = repository
 
-    @staticmethod
-    def run_action(request, names):
+    def run_action(self, request):
         if request.action == PRESENCE:
-            if request.sender in names:
+            if request.sender in self.__repo.users_list(active=True):
                 return forbidden()
+            self.__repo.add_user(request.sender)
             return success()
         elif request.action == SEND_MSG:
             contacts = request.destination.replace(' ', '').split(',')
             if len(contacts) == 1 and (not contacts[0] or contacts[0] == '*'):
-                contacts = names
+                contacts = self.__repo.get_contact_list(request.sender)
             responses = []
             for contact in contacts:
                 data = {
@@ -95,6 +97,7 @@ class Handler:
                 responses.append(success(**data))
             return responses
         elif request.action == GET_CONTACTS:
+            names = self.__repo.get_contact_list(request.sender)
             count = len(names)
             data = {
                 ACTION: GET_CONTACTS,
@@ -106,8 +109,22 @@ class Handler:
                     ACTION: GET_CONTACTS,
                     USER: contact,
                 }
-                responses.append(success(**data))
+                responses.append(accepted(**data))
             return responses
+        elif request.action == ADD_CONTACT:
+            if request.sender == request.user:
+                return error('Нельзя добавить себя')
+            try:
+                self.__repo.add_contact(request.sender, request.user)
+                return success()
+            except Exception:
+                return error('Контакта не существует')
+        elif request.action == DEL_CONTACT:
+            try:
+                self.__repo.remove_contact(request.sender, request.user)
+                return success()
+            except Exception:
+                return error('Контакта не существует')
         elif request.action == ERROR:
             return error('Ошибка действия')
         else:
@@ -124,13 +141,15 @@ class Server(metaclass=ServerVerifier):
     def __init__(self, address):
         self.__logger = server_logger
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.__handler = Handler()
+        self.__repo = Repository()
+        self.__handler = Handler(self.__repo)
         self.__client_sockets = []
         self.__socket_dispatcher = {}
         self.__name_socket = {}
         self.__in = []
         self.__out = []
         self.__addr, self.__port = address
+
 
         self.__sock.bind((self.__addr, self.__port))
         self.__sock.listen(MAX_CONNECTIONS)
@@ -143,11 +162,13 @@ class Server(metaclass=ServerVerifier):
 
     def main(self):
         try:
+            for user in self.__repo.users_list():
+                self.__repo.user_logout(user)
             while True:
                 try:
                     client, address = self.__sock.accept()
-                    dispatcher = Dispatcher(client, self.__handler,
-                                            names=self.__name_socket)
+                    dispatcher = Dispatcher(client, self.__handler)
+                    self.__repo.user_login(dispatcher.user_name, address[0])
                 except OSError:
                     pass
                 else:
@@ -156,8 +177,8 @@ class Server(metaclass=ServerVerifier):
                         self.__socket_dispatcher[client] = dispatcher
                         self.__name_socket[dispatcher.user_name] = client
                         info_msg = f'User "{self.__user_name(client)}" ' \
-                            f'from {address} connected. ' \
-                            f'Current {len(self.__client_sockets)}.'
+                                   f'from {address} connected. ' \
+                                   f'Current {len(self.__client_sockets)}.'
                         self.__logger.info(info_msg)
                 finally:
                     r = []
@@ -189,7 +210,7 @@ class Server(metaclass=ServerVerifier):
     def __process(self):
         while len(self.__in):
             dispatcher = self.__in.pop()
-            dispatcher.process(names=self.__name_socket.keys())
+            dispatcher.process()
             self.__out.append(dispatcher)
 
     def __output(self, clients):
@@ -207,8 +228,9 @@ class Server(metaclass=ServerVerifier):
         self.__client_sockets.remove(client)
         name = self.__socket_dispatcher.pop(client)
         self.__name_socket.pop(name.user_name)
+        self.__repo.user_logout(name.user_name)
         info_msg = f'Клиент {name.user_name} отключён. ' \
-            f'Текущее количество клиентов: {len(self.__client_sockets)}.'
+                   f'Текущее количество клиентов: {len(self.__client_sockets)}.'
         self.__logger.info(info_msg)
         client.close()
 
