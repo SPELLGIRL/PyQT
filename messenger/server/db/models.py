@@ -18,6 +18,8 @@ class User(Base):
     name = Column(String)
     last_login = Column(DateTime)
     is_online = Column(Boolean)
+    sent = Column(Integer, default=0)
+    receive = Column(Integer, default=0)
     history = relationship('History', back_populates='user')
     contacts = relationship('User', secondary=contact_table,
                             backref='owner',
