@@ -1,19 +1,23 @@
 import socket
+import sys
 from threading import Thread
 from random import randint
 from jim.utils import Message, receive
 from jim.config import *
 from exceptions import *
-from client import log_decorator
+from client import Client, log_decorator
 from db.repository import Repository
+from client_gui import ClientMainWindow, UserNameDialog
+from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtCore import pyqtSignal, QObject
 
 
 class Console:
     __slots__ = ('__client', '__actions', '__listen_thread', '__repo')
 
-    def __init__(self, client, user_name):
-        self.__client = client
-        self.__client.user_name = self.__validate_username(user_name)
+    def __init__(self, parsed_args):
+        self.__client = Client((parsed_args.addr, parsed_args.port))
+        self.__client.user_name = self.__validate_username(parsed_args.user)
         self.__repo = Repository(self.__client.user_name)
         self.__listen_thread = Thread(target=self.receiver)
         self.__listen_thread.daemon = True
@@ -54,12 +58,13 @@ class Console:
             if user_name == 'Гость' or not user_name:
                 user_name = input('Введите своё имя: ') or \
                             f'Гость_{randint(1, 9999)}'
+                user_name = user_name.strip()
                 try:
                     if len(user_name) > 25:
                         raise UsernameToLongError
-                    break
                 except UsernameToLongError as ce:
                     print(ce)
+                    exit(0)
             else:
                 break
         return user_name
@@ -93,8 +98,7 @@ class Console:
                         to = ', '.join(self.__repo.get_contacts())
                     else:
                         to = params[TO]
-                    self.__repo.save_message(self.__client.user_name,
-                                             to, params[TEXT])
+                    self.__repo.save_message(to, "out", params[TEXT])
                 break
             except ValueError:
                 print('Действие не распознано, попробуйте еще раз...')
@@ -107,6 +111,8 @@ class Console:
                           enumerate(self.__actions, 0)])
 
     def main(self):
+        if not self.__client.connect():
+            raise ConnectionResetError
         self.__repo.clear_contacts()
         for message in self.__client.load_contacts()[1:]:
             self.__repo.add_contact(message.user)
@@ -157,18 +163,141 @@ class Console:
                 print(f'{response.user or "Нет данных"}')
         elif response.action == SEND_MSG:
             if response.sender != response.destination:
-                self.__repo.save_message(response.sender, self.__client.user_name,
-                                         response.text)
+                self.__repo.save_message(response.sender, "in", response.text)
                 print(f'\nСообщение от {response.sender}: {response.text}')
         return response
 
 
-class Gui:
-    __slots__ = ('__client',)
+class Gui(QObject):
+    new_message = pyqtSignal(str)
+    connection_lost = pyqtSignal()
 
-    def __init__(self, client):
-        self.__client = client
-        pass
+    def __init__(self, parsed_args):
+        QObject.__init__(self)
+        self.__client = Client((parsed_args.addr, parsed_args.port))
+        self.client_app = QApplication(sys.argv)
+        self.__client.user_name = self.__validate_username(parsed_args.user)
+        self.__repo = Repository(self.__client.user_name)
+        self.__client.handler = self
+        self.user_name = self.__client.user_name
+        self.__listen_thread = Thread(target=self.run)
+        self.__listen_thread.daemon = True
+
+    def main(self):
+        if not self.__client.connect():
+            raise ConnectionResetError
+        self.__repo.clear_contacts()
+        for message in self.__client.load_contacts()[1:]:
+            self.__repo.add_contact(message.user)
+        try:
+            self.__listen_thread.start()
+            main_window = ClientMainWindow(self.__repo, self)
+            main_window.make_connection(self)
+            main_window.setWindowTitle(
+                f'Чат Программа alpha release - {self.__client.user_name}')
+            self.client_app.exec_()
+        except KeyboardInterrupt:
+            print('Клиент закрыт по инициативе пользователя.')
+        except ConnectionResetError:
+            print('Соединение с сервером разорвано.')
+        except ConnectionAbortedError:
+            print('Пользователь с таким именем уже подключён. '
+                  'Соединение с сервером разорвано.')
+        except CUSTOM_EXCEPTIONS as ce:
+            print(ce)
+        finally:
+            self.__listen_thread.is_alive = False
+            self.__client.close()
 
     def run(self):
-        pass
+        try:
+            self.user_list_update()
+            while True:
+                messages = []
+                try:
+                    messages = receive(self.__client.sock, self.__client.logger)
+                except socket.timeout:
+                    pass
+                while len(messages):
+                    message = messages.pop()
+                    checked_msg = self.__client.check_response(message)
+                    self.receive_callback(checked_msg)
+        except ConnectionResetError:
+            self.__listen_thread.is_alive = False
+
+    def __validate_username(self, user_name):
+        while True:
+            if user_name == 'Гость' or not user_name:
+                start_dialog = UserNameDialog()
+                self.client_app.exec_()
+                # Если пользователь ввёл имя и нажал ОК, то сохраняем ведённое и удаляем объект, инааче выходим
+                if start_dialog.ok_pressed:
+                    user_name = start_dialog.client_name.text()
+                    user_name = user_name.strip()
+                    try:
+                        if len(user_name) > 25:
+                            raise UsernameToLongError
+                    except UsernameToLongError as ce:
+                        QMessageBox.warning(start_dialog, "Warning", f'{ce}')
+                        user_name = ''
+                        continue
+                    del start_dialog
+                else:
+                    exit(0)
+            else:
+                break
+        return user_name
+
+    def user_list_update(self):
+        self.__client.logger.debug(f'Запрос списка известных пользователей {self.__client.user_name}')
+        data = {
+            ACTION: GET_CONNECTED,
+        }
+        self.__client.send(Message(**data))
+
+    def add_contact(self, contact):
+        self.__client.logger.debug(f'Создание контакта {contact}')
+        data = {
+            ACTION: ADD_CONTACT,
+            USER: contact,
+        }
+        self.__client.send(Message(**data))
+
+    # Функция удаления клиента на сервере
+    def remove_contact(self, contact):
+        self.__client.logger.debug(f'Удаление контакта {contact}')
+        data = {
+            ACTION: DEL_CONTACT,
+            USER: contact,
+        }
+        self.__client.send(Message(**data))
+
+    def send_message(self, to, message):
+        data = {
+            ACTION: SEND_MSG,
+            TO: to,
+            TEXT: message
+        }
+        if to != self.user_name:
+            self.__repo.save_message(to, "out", message)
+        self.__client.send(Message(**data))
+
+    def receive_callback(self, response):
+        if isinstance(response, str):
+            pass
+        if response.action == GET_CONNECTED:
+            if response.user:
+                self.__repo.add_client(response.user)
+        if response.action == GET_CONTACTS:
+            if response.quantity:
+                pass
+            if response.user:
+                self.__repo.add_contact(response.user)
+        elif response.action == SEND_MSG:
+            if response.sender != response.destination:
+                self.__repo.save_message(response.sender, "in", response.text)
+                self.new_message.emit(response.sender)
+        return response
+
+
+

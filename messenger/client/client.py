@@ -27,7 +27,6 @@ log_decorator = Log(client_logger)
 
 
 class Client(metaclass=ClientVerifier):
-    # __slots__ = ('__logger', '__host', '__sock', '__user_name')
     port = Port()
 
     def __init__(self, address):
@@ -35,6 +34,7 @@ class Client(metaclass=ClientVerifier):
         self.__addr, self.__port = address
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__user_name = None
+        self.handler = None
 
         self.__sock.settimeout(1)
         super().__init__()

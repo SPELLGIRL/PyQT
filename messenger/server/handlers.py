@@ -27,9 +27,10 @@ class Gui:
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
         config.read(f"{dir_path}/{'server.ini'}")
-
-        result = parse_args(config['SETTINGS']['Default_port'],
-                            config['SETTINGS']['Listen_Address'])
+        result = parse_args(
+            default_ip=config['SETTINGS']['listen_address'],
+            default_port=config['SETTINGS']['default_port']
+        )
         listen_address = result.a
         listen_port = result.p
 
@@ -71,8 +72,8 @@ class Gui:
             config_window = ConfigWindow()
             config_window.db_path.insert(config['SETTINGS']['Database_path'])
             config_window.db_file.insert(config['SETTINGS']['Database_file'])
-            config_window.port.insert(config['SETTINGS']['Default_port'])
-            config_window.ip.insert(config['SETTINGS']['Listen_Address'])
+            config_window.port.insert(config['SETTINGS']['default_port'])
+            config_window.ip.insert(config['SETTINGS']['listen_address'])
             config_window.save_btn.clicked.connect(save_server_config)
 
         def save_server_config():
@@ -85,11 +86,11 @@ class Gui:
             except ValueError:
                 message.warning(config_window, 'Ошибка', 'Порт должен быть числом')
             else:
-                config['SETTINGS']['Listen_Address'] = config_window.ip.text()
+                config['SETTINGS']['listen_address'] = config_window.ip.text()
                 if 1023 < port < 65536:
-                    config['SETTINGS']['Default_port'] = str(port)
+                    config['SETTINGS']['default_port'] = str(port)
                     print(port)
-                    with open('server.ini', 'w') as conf:
+                    with open(os.path.join(dir_path, 'server.ini'), 'w') as conf:
                         config.write(conf)
                         message.information(config_window, 'OK',
                                             'Настройки успешно сохранены!')
