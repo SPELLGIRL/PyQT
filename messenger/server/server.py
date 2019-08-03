@@ -11,6 +11,7 @@ import select
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
 import socket
+import threading
 from jim.utils import Message, receive, accepted, success, error, forbidden
 from jim.config import *
 from log.config import server_logger
@@ -19,24 +20,26 @@ from metaclasses import ServerVerifier
 from descriptors import Port
 
 log_decorator = Log(server_logger)
+new_connection = False
+conflag_lock = threading.Lock()
 
 
 class Dispatcher:
     __slots__ = (
-        'sock', 'user_name', '__logger', '__handler', '__in', '__out', 'status'
+        'sock', 'user_name', '__logger', '__repo', '__in', '__out', 'status'
     )
 
-    def __init__(self, sock, handler, names):
+    def __init__(self, sock, repository):
         self.sock = sock
         self.user_name = None
+        self.__repo = repository
         self.__logger = server_logger
-        self.__handler = handler
         self.__in = []
         self.__out = []
 
         self.status = False
         self.receive()
-        self.process(names=names)
+        self.process()
         self.release()
 
     def receive(self):
@@ -45,12 +48,12 @@ class Dispatcher:
             raise Exception
         self.__in.extend(requests)
 
-    def process(self, names=''):
+    def process(self):
         while len(self.__in):
             request = self.__in.pop()
             if not request.sender:
                 request.sender = self.user_name
-            response = self.__handler.run_action(request, names)
+            response = self.run_action(request)
             if request.action == PRESENCE and response.response == OK:
                 self.user_name = request.sender
                 self.status = True
@@ -58,6 +61,61 @@ class Dispatcher:
                 self.__out.append(response)
             else:
                 self.__out.extend(response)
+
+    def run_action(self, request):
+        if request.action == PRESENCE:
+            if request.sender in self.__repo.users_list(active=True):
+                return forbidden()
+            self.__repo.add_user(request.sender)
+            return success()
+        elif request.action == SEND_MSG:
+            contacts = request.destination.replace(' ', '').split(',')
+            if len(contacts) == 1 and (not contacts[0] or contacts[0] == '*'):
+                contacts = self.__repo.get_contact_list(request.sender)
+            responses = []
+            for contact in contacts:
+                data = {
+                    ACTION: SEND_MSG,
+                    TEXT: request.text,
+                    TO: contact,
+                    FROM: request.sender,
+                }
+                self.__repo.process_message(request.sender, contact)
+                responses.append(success(**data))
+            return responses
+        elif request.action == GET_CONTACTS:
+            names = self.__repo.get_contact_list(request.sender)
+            count = len(names)
+            data = {
+                ACTION: GET_CONTACTS,
+                QUANTITY: count,
+            }
+            responses = [accepted(**data)]
+            for contact in names:
+                data = {
+                    ACTION: GET_CONTACTS,
+                    USER: contact,
+                }
+                responses.append(accepted(**data))
+            return responses
+        elif request.action == ADD_CONTACT:
+            if request.sender == request.user:
+                return error('Нельзя добавить себя')
+            try:
+                self.__repo.add_contact(request.sender, request.user)
+                return success()
+            except Exception:
+                return error('Контакта не существует')
+        elif request.action == DEL_CONTACT:
+            try:
+                self.__repo.remove_contact(request.sender, request.user)
+                return success()
+            except Exception:
+                return error('Контакта не существует')
+        elif request.action == ERROR:
+            return error('Ошибка действия')
+        else:
+            return error('Действие недоступно')
 
     def release(self, names=None):
         while len(self.__out):
@@ -71,66 +129,21 @@ class Dispatcher:
             self.__logger.info(f'Отправлено: {str(response)}.')
 
 
-class Handler:
-    __slots__ = ()
-
-    @staticmethod
-    def run_action(request, names):
-        if request.action == PRESENCE:
-            if request.sender in names:
-                return forbidden()
-            return success()
-        elif request.action == SEND_MSG:
-            contacts = request.destination.replace(' ', '').split(',')
-            if len(contacts) == 1 and (not contacts[0] or contacts[0] == '*'):
-                contacts = names
-            responses = []
-            for contact in contacts:
-                data = {
-                    ACTION: SEND_MSG,
-                    TEXT: request.text,
-                    TO: contact,
-                    FROM: request.sender,
-                }
-                responses.append(success(**data))
-            return responses
-        elif request.action == GET_CONTACTS:
-            count = len(names)
-            data = {
-                ACTION: GET_CONTACTS,
-                QUANTITY: count,
-            }
-            responses = [accepted(**data)]
-            for contact in names:
-                data = {
-                    ACTION: GET_CONTACTS,
-                    USER: contact,
-                }
-                responses.append(success(**data))
-            return responses
-        elif request.action == ERROR:
-            return error('Ошибка действия')
-        else:
-            return error('Действие недоступно')
-
-
-class Server(metaclass=ServerVerifier):
-    # __slots__ = (
-    #     '__logger', '__sock', '__logger', '__handler', '__client_sockets',
-    #     '__socket_dispatcher', '__name_socket', '__in', '__out'
-    # )
+class Server(threading.Thread, metaclass=ServerVerifier):
     __port = Port()
 
-    def __init__(self, address):
+    def __init__(self, address, database):
         self.__logger = server_logger
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.__handler = Handler()
+        self.__repo = database
         self.__client_sockets = []
         self.__socket_dispatcher = {}
         self.__name_socket = {}
         self.__in = []
         self.__out = []
         self.__addr, self.__port = address
+        self.handler = None
+        self.new_connection = True
 
         self.__sock.bind((self.__addr, self.__port))
         self.__sock.listen(MAX_CONNECTIONS)
@@ -141,13 +154,16 @@ class Server(metaclass=ServerVerifier):
         self.__logger.info(info_msg)
         super().__init__()
 
-    def main(self):
+    def run(self):
         try:
+            for user in self.__repo.users_list():
+                self.__repo.user_logout(user)
             while True:
                 try:
                     client, address = self.__sock.accept()
-                    dispatcher = Dispatcher(client, self.__handler,
-                                            names=self.__name_socket)
+                    dispatcher = Dispatcher(client, self.__repo)
+                    self.__repo.user_login(dispatcher.user_name, address[0])
+                    self.new_connection = True
                 except OSError:
                     pass
                 else:
@@ -156,8 +172,8 @@ class Server(metaclass=ServerVerifier):
                         self.__socket_dispatcher[client] = dispatcher
                         self.__name_socket[dispatcher.user_name] = client
                         info_msg = f'User "{self.__user_name(client)}" ' \
-                            f'from {address} connected. ' \
-                            f'Current {len(self.__client_sockets)}.'
+                                   f'from {address} connected. ' \
+                                   f'Current {len(self.__client_sockets)}.'
                         self.__logger.info(info_msg)
                 finally:
                     r = []
@@ -189,7 +205,7 @@ class Server(metaclass=ServerVerifier):
     def __process(self):
         while len(self.__in):
             dispatcher = self.__in.pop()
-            dispatcher.process(names=self.__name_socket.keys())
+            dispatcher.process()
             self.__out.append(dispatcher)
 
     def __output(self, clients):
@@ -207,8 +223,10 @@ class Server(metaclass=ServerVerifier):
         self.__client_sockets.remove(client)
         name = self.__socket_dispatcher.pop(client)
         self.__name_socket.pop(name.user_name)
+        self.__repo.user_logout(name.user_name)
+        self.new_connection = True
         info_msg = f'Клиент {name.user_name} отключён. ' \
-            f'Текущее количество клиентов: {len(self.__client_sockets)}.'
+                   f'Текущее количество клиентов: {len(self.__client_sockets)}.'
         self.__logger.info(info_msg)
         client.close()
 
@@ -216,29 +234,26 @@ class Server(metaclass=ServerVerifier):
         return self.__socket_dispatcher[client].user_name
 
 
-def parse_args():
+def parse_args(default_ip=DEFAULT_IP, default_port=DEFAULT_PORT):
     parser = ArgumentParser(description='Запуск сервера.')
     parser.add_argument(
-        '-a', nargs='?', default=f'{DEFAULT_IP}', type=str,
+        '-a', nargs='?', default=f'{default_ip}', type=str,
         help='ip адрес интерфейса (по умолчанию любой)'
     )
     parser.add_argument(
-        '-p', nargs='?', default=f'{DEFAULT_PORT}', type=int,
+        '-p', nargs='?', default=f'{default_port}', type=int,
         help='порт сервера в диапазоне от 1024 до 65535'
     )
+    parser.add_argument(
+        '-m',
+        default='console',
+        type=str.lower,
+        nargs='?',
+        choices=['gui', 'console'],
+        help='Mode: GUI, Console (default console)')
     result = parser.parse_args()
     # if result.p not in range(1024, 65535):
     #     parser.error(
     #         f'argument -p: invalid choice: {result.p} (choose from 1024-65535)'
     #     )
     return result
-
-
-def run():
-    args = parse_args()
-    server = Server((args.a, args.p))
-    server.main()
-
-
-if __name__ == '__main__':
-    run()

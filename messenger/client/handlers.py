@@ -5,14 +5,16 @@ from jim.utils import Message, receive
 from jim.config import *
 from exceptions import *
 from client import log_decorator
+from db.repository import Repository
 
 
 class Console:
-    __slots__ = ('__client', '__actions', '__listen_thread')
+    __slots__ = ('__client', '__actions', '__listen_thread', '__repo')
 
     def __init__(self, client, user_name):
         self.__client = client
         self.__client.user_name = self.__validate_username(user_name)
+        self.__repo = Repository(self.__client.user_name)
         self.__listen_thread = Thread(target=self.receiver)
         self.__listen_thread.daemon = True
 
@@ -29,6 +31,16 @@ class Console:
             {
                 ACTION: GET_CONTACTS,
                 'name': 'Запросить список контактов',
+            },
+            {
+                ACTION: ADD_CONTACT,
+                'name': 'Добавить контакт',
+                'params': (USER,),
+            },
+            {
+                ACTION: DEL_CONTACT,
+                'name': 'Удалить контакт',
+                'params': (USER,),
             },
             {
                 ACTION: 'help',
@@ -64,7 +76,7 @@ class Console:
                     raise ValueError
                 if start[ACTION] == 'exit':
                     raise KeyboardInterrupt
-                if start[ACTION] == 'help':
+                elif start[ACTION] == 'help':
                     print(self.__help_info)
                     continue
                 params = {ACTION: start[ACTION]}
@@ -72,6 +84,17 @@ class Console:
                     for param in start['params']:
                         p = str(input(f'Выберите параметр "{param}": '))
                         params[param] = p
+                if start[ACTION] == ADD_CONTACT:
+                    self.__repo.add_contact(params[USER])
+                elif start[ACTION] == DEL_CONTACT:
+                    self.__repo.del_contact(params[USER])
+                elif start[ACTION] == SEND_MSG:
+                    if params[TO] == '' or params[TO] == '*':
+                        to = ', '.join(self.__repo.get_contacts())
+                    else:
+                        to = params[TO]
+                    self.__repo.save_message(self.__client.user_name,
+                                             to, params[TEXT])
                 break
             except ValueError:
                 print('Действие не распознано, попробуйте еще раз...')
@@ -84,6 +107,9 @@ class Console:
                           enumerate(self.__actions, 0)])
 
     def main(self):
+        self.__repo.clear_contacts()
+        for message in self.__client.load_contacts()[1:]:
+            self.__repo.add_contact(message.user)
         try:
             self.__listen_thread.start()
             print(self.__help_info)
@@ -120,17 +146,19 @@ class Console:
         except ConnectionResetError:
             self.__listen_thread.is_alive = False
 
-    @staticmethod
-    def receive_callback(response):
+    def receive_callback(self, response):
         if isinstance(response, str):
             print(response)
         if response.action == GET_CONTACTS:
             if response.quantity:
-                print(f'\nСписок контактов (подключено {response.quantity}).')
+                print(f'\nСписок контактов ({response.quantity}).')
             if response.user:
+                self.__repo.add_contact(response.user)
                 print(f'{response.user or "Нет данных"}')
         elif response.action == SEND_MSG:
             if response.sender != response.destination:
+                self.__repo.save_message(response.sender, self.__client.user_name,
+                                         response.text)
                 print(f'\nСообщение от {response.sender}: {response.text}')
         return response
 

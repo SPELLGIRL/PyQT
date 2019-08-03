@@ -11,6 +11,7 @@
 
 
 import socket
+import time
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP
 from exceptions import ResponseCodeLenError, MandatoryKeyError, \
@@ -65,6 +66,17 @@ class Client(metaclass=ClientVerifier):
         messages = receive(self.__sock, self.__logger)
         return messages[0].response == OK if messages else False
 
+    def load_contacts(self):
+        data = {
+            ACTION: GET_CONTACTS,
+            FROM: self.user_name
+        }
+        request = Message(data)
+        self.send(request)
+        time.sleep(1)
+        messages = receive(self.__sock, self.__logger)
+        return messages or False
+
     @staticmethod
     def check_response(response):
         if not isinstance(response, Message):
@@ -85,6 +97,7 @@ class Client(metaclass=ClientVerifier):
             self.__sock.connect((self.__addr, self.__port))
             if not self.__check_presence():
                 raise ConnectionRefusedError
+
             info_msg = f'Клиент запущен ({self.user_name}).'
             result = True
         except (ConnectionRefusedError, OSError):

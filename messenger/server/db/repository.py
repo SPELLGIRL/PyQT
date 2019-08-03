@@ -7,8 +7,10 @@ import datetime
 
 
 class Repository:
-    def __init__(self):
-        self.engine = create_engine(DATABASE, echo=False)
+    def __init__(self, path=DATABASE):
+        self.engine = create_engine(f'sqlite:///{path}', echo=False,
+                                    pool_recycle=7200,
+                                    connect_args={'check_same_thread': False})
 
         Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine)
@@ -55,10 +57,6 @@ class Repository:
             query = query.filter(User.is_online == active)
         return [value for (value,) in query.all()]
 
-    def active_users_list(self):
-        query = self.session.query(User.name).filter(User.is_online).all()
-        return [value for (value,) in query]
-
     def login_history(self, user_name=None):
         query = self.session.query(User.name,
                                    func.strftime('%Y-%m-%d %H:%M', History.time),
@@ -90,6 +88,20 @@ class Repository:
             self.session.commit()
         else:
             raise Exception
+
+    def process_message(self, sender, recipient):
+        sender = self.get_user_by_name(sender)
+        recipient = self.get_user_by_name(recipient)
+        if sender:
+            sender.sent += 1
+        if recipient:
+            recipient.receive += 1
+        self.session.commit()
+
+    def message_history(self):
+        query = self.session.query(User.name, User.last_login, User.sent,
+                                   User.receive)
+        return query.all()
 
 
 if __name__ == '__main__':

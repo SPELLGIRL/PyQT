@@ -1,3 +1,5 @@
+import os
+
 # Порт поумолчанию для сетевого ваимодействия
 DEFAULT_PORT = 8000
 # IP адрес по умолчанию для подключения к серверу
@@ -6,3 +8,5 @@ DEFAULT_IP = '127.0.0.1'
 MAX_PACKAGE_LENGTH = 1024
 # Кодировка проекта
 ENCODING = 'utf-8'
+# База данных
+DATABASE = f'sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), "client")}'

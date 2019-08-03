@@ -28,6 +28,8 @@ ERROR = 'error'
 PRESENCE = 'presence'
 SEND_MSG = 'send_msg'
 GET_CONTACTS = 'get_contacts'
+ADD_CONTACT = 'add_contact'
+DEL_CONTACT = 'del_contact'
 READ_MESSAGES = 'read_messages'
 
 # Коды ответов
