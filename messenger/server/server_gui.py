@@ -1,4 +1,5 @@
 import sys
+import time
 from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication, QLabel, \
     QTableView, QDialog, QPushButton, QLineEdit, QFileDialog, QMessageBox
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
@@ -15,15 +16,16 @@ def gui_create_model(database):
                                                'IP Адрес'])
             for user_name in list_users:
                 row = database.login_history(user_name)[-1]
-                name, time, ip = row
+                name, date_time, ip = row
                 user = QStandardItem(name)
                 user.setEditable(False)
                 ip = QStandardItem(ip)
                 ip.setEditable(False)
-                time = QStandardItem(str(time))
-                time.setEditable(False)
-                qt_list.appendRow([user, time, ip])
+                date_time = QStandardItem(str(date_time))
+                date_time.setEditable(False)
+                qt_list.appendRow([user, date_time, ip])
         except Exception:
+            time.sleep(1)
             continue
         else:
             return qt_list
