@@ -196,15 +196,10 @@ class Gui(QObject):
             main_window.setWindowTitle(
                 f'Чат Программа alpha release - {self.__client.user_name}')
             self.client_app.exec_()
-        except KeyboardInterrupt:
-            print('Клиент закрыт по инициативе пользователя.')
-        except ConnectionResetError:
-            print('Соединение с сервером разорвано.')
-        except ConnectionAbortedError:
-            print('Пользователь с таким именем уже подключён. '
-                  'Соединение с сервером разорвано.')
+        except (ConnectionResetError, ConnectionAbortedError):
+            self.connection_lost.emit()
         except CUSTOM_EXCEPTIONS as ce:
-            print(ce)
+            QMessageBox.warning(UserNameDialog(), "Warning", f'{ce}')
         finally:
             self.__listen_thread.is_alive = False
             self.__client.close()
@@ -222,8 +217,9 @@ class Gui(QObject):
                     message = messages.pop()
                     checked_msg = self.__client.check_response(message)
                     self.receive_callback(checked_msg)
-        except ConnectionResetError:
+        except (ConnectionError, ConnectionAbortedError, ConnectionResetError):
             self.__listen_thread.is_alive = False
+            self.connection_lost.emit()
 
     def __validate_username(self, user_name):
         while True:
@@ -284,7 +280,7 @@ class Gui(QObject):
 
     def receive_callback(self, response):
         if isinstance(response, str):
-            pass
+            self.connection_lost.emit()
         if response.action == GET_CONNECTED:
             if response.user:
                 self.__repo.add_client(response.user)
