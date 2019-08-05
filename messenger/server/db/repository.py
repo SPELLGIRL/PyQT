@@ -11,6 +11,8 @@ class Repository:
     def __init__(self, path=None, name=None):
         if not path:
             path = DATABASE
+            if not os.path.exists(path):
+                os.mkdir(path)
         if not name:
             name = "server.db"
         self.engine = create_engine(f'sqlite:///{os.path.join(path, name)}',
