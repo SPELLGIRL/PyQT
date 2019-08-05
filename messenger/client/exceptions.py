@@ -42,5 +42,5 @@ class ServerError(Exception):
 
 CUSTOM_EXCEPTIONS = (
     UsernameToLongError, ResponseCodeError, ResponseCodeLenError,
-    MandatoryKeyError
+    MandatoryKeyError, ServerError
 )

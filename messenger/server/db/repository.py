@@ -72,7 +72,7 @@ class Repository:
                                    History.ip).join(User)
         if user_name:
             query = query.filter(User.name == user_name)
-        return query.all()
+        return [value for value in query.all()]
 
     def get_contact_list(self, user_name):
         user = self.get_user_by_name(user_name)

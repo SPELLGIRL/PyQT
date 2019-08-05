@@ -184,12 +184,12 @@ class Gui(QObject):
         self.__listen_thread.daemon = True
 
     def main(self):
-        if not self.__client.connect():
-            raise ConnectionResetError
-        self.__repo.clear_contacts()
-        for message in self.__client.load_contacts()[1:]:
-            self.__repo.add_contact(message.user)
         try:
+            if not self.__client.connect():
+                raise ConnectionResetError
+            self.__repo.clear_contacts()
+            for message in self.__client.load_contacts()[1:]:
+                self.__repo.add_contact(message.user)
             self.__listen_thread.start()
             main_window = ClientMainWindow(self.__repo, self)
             main_window.make_connection(self)

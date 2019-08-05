@@ -62,8 +62,7 @@ class Launcher:
                 self.__clients.append(
                     subprocess.Popen(f'python client -u test{i}',
                                      creationflags=subprocess.CREATE_NEW_CONSOLE))
-        print('Готово!')
-        time.sleep(1)
+        time.sleep(5)
 
     def close(self):
         while self.__clients:
