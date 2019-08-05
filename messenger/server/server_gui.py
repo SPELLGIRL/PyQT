@@ -6,22 +6,27 @@ from PyQt5.QtCore import Qt
 
 
 def gui_create_model(database):
-    list_users = database.users_list(active=True)
-    qt_list = QStandardItemModel()
-    qt_list.setHorizontalHeaderLabels(['Имя Клиента',
-                                       'Время подключения',
-                                       'IP Адрес'])
-    for user_name in list_users:
-        row = database.login_history(user_name)[-1]
-        name, time, ip = row
-        user = QStandardItem(name)
-        user.setEditable(False)
-        ip = QStandardItem(ip)
-        ip.setEditable(False)
-        time = QStandardItem(str(time))
-        time.setEditable(False)
-        qt_list.appendRow([user, time, ip])
-    return qt_list
+    while True:
+        try:
+            list_users = database.users_list(active=True)
+            qt_list = QStandardItemModel()
+            qt_list.setHorizontalHeaderLabels(['Имя Клиента',
+                                               'Время подключения',
+                                               'IP Адрес'])
+            for user_name in list_users:
+                row = database.login_history(user_name)[-1]
+                name, time, ip = row
+                user = QStandardItem(name)
+                user.setEditable(False)
+                ip = QStandardItem(ip)
+                ip.setEditable(False)
+                time = QStandardItem(str(time))
+                time.setEditable(False)
+                qt_list.appendRow([user, time, ip])
+        except Exception:
+            continue
+        else:
+            return qt_list
 
 
 def create_stat_model(database):

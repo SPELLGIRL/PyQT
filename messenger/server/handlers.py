@@ -24,7 +24,6 @@ class Console:
 class Gui:
     def main(self):
         config = configparser.ConfigParser()
-
         dir_path = os.path.dirname(os.path.realpath(__file__))
         config.read(f"{dir_path}/{'server.ini'}")
         result = parse_args(
@@ -33,11 +32,10 @@ class Gui:
         )
         listen_address = result.a
         listen_port = result.p
-
         database = Repository(
-            os.path.join(config['SETTINGS']['Database_path'] or dir_path,
-                         config['SETTINGS']['Database_file']))
-
+            config['SETTINGS']['Database_path'],
+            config['SETTINGS']['Database_file']
+        )
         server = Server((listen_address, listen_port), database)
         server.handler = self
         server.daemon = True
@@ -45,7 +43,6 @@ class Gui:
 
         server_app = QApplication(sys.argv)
         main_window = MainWindow()
-
         main_window.statusBar().showMessage('Server Working')
         main_window.active_clients_table.setModel(gui_create_model(database))
         main_window.active_clients_table.resizeColumnsToContents()

@@ -1,4 +1,5 @@
 import subprocess
+import time
 from argparse import ArgumentParser
 
 
@@ -44,11 +45,15 @@ class Launcher:
 
     def run(self):
         self.close()
+        time.sleep(1)
+        print('Запускаем сервер...')
         if self.__server_mode == 'gui':
             self.__server = subprocess.Popen('python server -m gui')
         else:
             self.__server = subprocess.Popen('python server',
                                              creationflags=subprocess.CREATE_NEW_CONSOLE)
+        time.sleep(2)
+        print('Запускаем клиентов...')
         for i in range(self.__num):
             if self.__client_mode == 'gui':
                 self.__clients.append(
@@ -57,6 +62,8 @@ class Launcher:
                 self.__clients.append(
                     subprocess.Popen(f'python client -u test{i}',
                                      creationflags=subprocess.CREATE_NEW_CONSOLE))
+        print('Готово!')
+        time.sleep(1)
 
     def close(self):
         while self.__clients:

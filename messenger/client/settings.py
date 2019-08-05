@@ -9,4 +9,4 @@ MAX_PACKAGE_LENGTH = 1024
 # Кодировка проекта
 ENCODING = 'utf-8'
 # База данных
-DATABASE = f'sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), "db/storage/client")}'
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "db/storage")

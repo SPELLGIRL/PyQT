@@ -1,3 +1,4 @@
+import os
 from db.models import Base, Contact, MessageHistory, ConnectedUser
 from settings import DATABASE
 from sqlalchemy import create_engine, exists
@@ -7,7 +8,9 @@ import datetime
 
 class Repository:
     def __init__(self, name):
-        self.engine = create_engine(DATABASE + f'_{name}.db', echo=False,
+        if not os.path.exists(DATABASE):
+            os.mkdir(DATABASE)
+        self.engine = create_engine(f'sqlite:///{os.path.join(DATABASE, f"client_{name}.db")}', echo=False,
                                     pool_recycle=7200,
                                     connect_args={'check_same_thread': False})
 

@@ -1,3 +1,4 @@
+import os
 from db.models import Base, User, History
 from settings import DATABASE
 from sqlalchemy import create_engine, exists
@@ -7,8 +8,13 @@ import datetime
 
 
 class Repository:
-    def __init__(self, path=DATABASE):
-        self.engine = create_engine(f'sqlite:///{path}', echo=False,
+    def __init__(self, path=None, name=None):
+        if not path:
+            path = DATABASE
+        if not name:
+            name = "server.db"
+        self.engine = create_engine(f'sqlite:///{os.path.join(path, name)}',
+                                    echo=False,
                                     pool_recycle=7200,
                                     connect_args={'check_same_thread': False})
 
@@ -25,12 +31,13 @@ class Repository:
         user.is_online = True
         user.last_login = datetime.datetime.now()
         self.add_login_history(user, ip)
+        self.session.commit()
 
     def user_logout(self, user_name):
         user = self.get_user_by_name(user_name)
         if user:
             user.is_online = False
-        self.session.commit()
+            self.session.commit()
 
     def add_user(self, user_name):
         if not self.session.query(exists().where(User.name == user_name)).scalar():
