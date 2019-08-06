@@ -98,6 +98,16 @@ class Dispatcher:
                 }
                 responses.append(accepted(**data))
             return responses
+        elif request.action == GET_CONNECTED:
+            names = self.__repo.users_list(active=True)
+            responses = [accepted()]
+            for contact in names:
+                data = {
+                    ACTION: GET_CONNECTED,
+                    USER: contact,
+                }
+                responses.append(accepted(**data))
+            return responses
         elif request.action == ADD_CONTACT:
             if request.sender == request.user:
                 return error('Нельзя добавить себя')
@@ -241,7 +251,7 @@ def parse_args(default_ip=DEFAULT_IP, default_port=DEFAULT_PORT):
         help='ip адрес интерфейса (по умолчанию любой)'
     )
     parser.add_argument(
-        '-p', nargs='?', default=f'{default_port}', type=int,
+        '-p', nargs='?', default=default_port, type=int,
         help='порт сервера в диапазоне от 1024 до 65535'
     )
     parser.add_argument(

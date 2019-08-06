@@ -17,19 +17,31 @@ class Contact(Base):
         return f'<Контакт {self.name}>'
 
 
+class ConnectedUser(Base):
+    __tablename__ = 'connecteduser'
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return f'<Клиент {self.name}>'
+
+
 class MessageHistory(Base):
     __tablename__ = 'history'
     id = Column(Integer, primary_key=True)
-    sender = Column(String)
-    to = Column(String)
+    contact = Column(String)
+    direction = Column(String)
     message = Column(Text)
     time = Column(DateTime)
 
-    def __init__(self, sender, to, message):
-        self.sender = sender
-        self.to = to
+    def __init__(self, contact, direction, message):
+        self.contact = contact
+        self.direction = direction
         self.message = message
         self.time = datetime.datetime.now()
 
     def __repr__(self):
-        return f'<История {self.sender} to {self.to}, {self.time}>'
+        return f'<Сообщение {"отправлено" if self.direction == "in" else "получено от"} {self.contact}, {self.time}>'

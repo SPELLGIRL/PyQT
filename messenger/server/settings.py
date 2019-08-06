@@ -13,4 +13,4 @@ ENCODING = 'utf-8'
 # Время ожидания
 TIMEOUT = 0.2
 # База данных
-DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.db")
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "db")

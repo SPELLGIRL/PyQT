@@ -27,7 +27,6 @@ log_decorator = Log(client_logger)
 
 
 class Client(metaclass=ClientVerifier):
-    # __slots__ = ('__logger', '__host', '__sock', '__user_name')
     port = Port()
 
     def __init__(self, address):
@@ -35,8 +34,9 @@ class Client(metaclass=ClientVerifier):
         self.__addr, self.__port = address
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__user_name = None
+        self.handler = None
 
-        self.__sock.settimeout(1)
+        self.__sock.settimeout(5)
         super().__init__()
 
     @property
@@ -93,15 +93,20 @@ class Client(metaclass=ClientVerifier):
     @log_decorator
     def connect(self):
         result = False
-        try:
-            self.__sock.connect((self.__addr, self.__port))
-            if not self.__check_presence():
-                raise ConnectionRefusedError
-
-            info_msg = f'Клиент запущен ({self.user_name}).'
-            result = True
-        except (ConnectionRefusedError, OSError):
-            info_msg = 'Сервер отклонил запрос на подключение.'
+        info_msg = f'Клиент запущен ({self.user_name}).'
+        for i in range(5):
+            try:
+                self.__sock.connect((self.__addr, self.__port))
+                if not self.__check_presence():
+                    raise ConnectionRefusedError
+                result = True
+            except (ConnectionRefusedError, OSError):
+                info_msg = 'Сервер отклонил запрос на подключение.'
+                continue
+            else:
+                break
+            finally:
+                time.sleep(1)
         print(info_msg)
         self.__logger.info(info_msg)
         return result

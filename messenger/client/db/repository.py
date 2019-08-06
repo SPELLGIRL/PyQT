@@ -1,4 +1,5 @@
-from db.models import Base, Contact, MessageHistory
+import os
+from db.models import Base, Contact, MessageHistory, ConnectedUser
 from settings import DATABASE
 from sqlalchemy import create_engine, exists
 from sqlalchemy.orm import sessionmaker
@@ -7,7 +8,9 @@ import datetime
 
 class Repository:
     def __init__(self, name):
-        self.engine = create_engine(DATABASE + f'_{name}.db', echo=False,
+        if not os.path.exists(DATABASE):
+            os.mkdir(DATABASE)
+        self.engine = create_engine(f'sqlite:///{os.path.join(DATABASE, f"client_{name}.db")}', echo=False,
                                     pool_recycle=7200,
                                     connect_args={'check_same_thread': False})
 
@@ -23,32 +26,48 @@ class Repository:
             self.session.commit()
             return contact
 
+    def add_client(self, user_name):
+        if not self.session.query(exists().where(ConnectedUser.name == user_name)).scalar():
+            contact = ConnectedUser(user_name)
+            self.session.add(contact)
+            self.session.commit()
+            return contact
+
     def del_contact(self, contact):
         self.session.query(Contact).filter_by(name=contact).delete()
         self.session.commit()
 
     def clear_contacts(self):
         self.session.query(Contact).delete()
+        self.session.query(ConnectedUser).delete()
         self.session.commit()
 
-    def save_message(self, sender, to, message):
-        message_row = MessageHistory(sender, to, message)
+    def save_message(self, contact, direction, message):
+        message_row = MessageHistory(contact, direction, message)
         self.session.add(message_row)
         self.session.commit()
 
-    def get_history(self, sender=None, to=None):
+    def get_history(self, contact=None):
         query = self.session.query(MessageHistory)
-        if sender:
-            query = query.filter_by(sender=sender)
-        if to:
-            query = query.filter_by(to=to)
-        return [(history_row.sender, history_row.to, history_row.message,
+        if contact:
+            query = query.filter_by(contact=contact)
+        return [(history_row.contact, history_row.direction, history_row.message,
                  history_row.time)
                 for history_row in query.all()]
 
     def get_contacts(self):
         query = self.session.query(Contact.name).all()
         return [value for (value,) in query]
+
+    def get_connected(self):
+        query = self.session.query(ConnectedUser.name).all()
+        return [value for (value,) in query]
+
+    def check_contact(self, contact):
+        if self.session.query(Contact).filter_by(name=contact).count():
+            return True
+        else:
+            return False
 
 
 if __name__ == '__main__':

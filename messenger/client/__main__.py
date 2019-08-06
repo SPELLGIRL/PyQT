@@ -1,16 +1,14 @@
 from handlers import Console, Gui
-from client import Client, parse_args
+from client import parse_args
 
 
 def run():
     args = parse_args()
-    client = Client((args.addr, args.port))
     if args.mode == 'gui':
-        handler = Gui(client)
+        handler = Gui(args)
     else:
-        handler = Console(client, args.user)
-    if client.connect():
-        handler.main()
+        handler = Console(args)
+    handler.main()
 
 
 run()
