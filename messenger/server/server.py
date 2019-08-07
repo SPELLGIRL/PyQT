@@ -83,14 +83,14 @@ class Dispatcher:
             self.__repo.add_user(request.sender, binascii.hexlify(passwd_hash))
             data = auth_request()
             return success(**data)
-        elif request.action == AUTH:
+        elif request.action == AUTH and request.text:
             client_digest = binascii.a2b_base64(request.text)
             # Если ответ клиента корректный, то сохраняем его в список пользователей.
             digest = self.create_digest(self.__repo.get_hash(request.sender))
             if hmac.compare_digest(digest, client_digest):
-                # добавляем пользователя в список активных и если у него изменился открытый ключ
-                # сохраняем новый
-                self.__repo.user_login(self.user_name, self.ip)
+                # добавляем пользователя в список активных и если у него изменился
+                # открытый ключ сохраняем новый
+                self.__repo.user_login(self.user_name, self.ip, request.user)
                 self.__repo.new_connection = True
                 return success()
             else:
@@ -158,6 +158,15 @@ class Dispatcher:
                 }
                 responses.append(accepted(**data))
             return responses
+        # Если это запрос публичного ключа пользователя
+        elif request.action == PUBLIC_KEY_REQUEST and request.user:
+            data = {
+                TEXT: self.__repo.get_pubkey(request.user)
+            }
+            if data[TEXT]:
+                return success(**data)
+            else:
+                return error('Нет публичного ключа для данного пользователя')
         elif request.action == ADD_CONTACT:
             if request.sender == request.user:
                 return error('Нельзя добавить себя')
@@ -286,6 +295,11 @@ class Server(threading.Thread, metaclass=ServerVerifier):
                    f'Текущее количество клиентов: {len(self.__client_sockets)}.'
         self.__logger.info(info_msg)
         client.close()
+
+    def remove_client_by_name(self, user_name):
+        sock = self.__name_socket.get(user_name)
+        if sock:
+            self.__remove_client(sock)
 
     def __user_name(self, client):
         return self.__socket_dispatcher[client].user_name

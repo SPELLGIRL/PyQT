@@ -1,7 +1,7 @@
 import os
-from db.models import Base, User, History
+from db.models import Base, User, History, contact_table
 from settings import DATABASE
-from sqlalchemy import create_engine, exists
+from sqlalchemy import create_engine, or_
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
 import datetime
@@ -26,13 +26,17 @@ class Repository:
         self.session = Session()
         self.new_connection = True
 
-    def user_login(self, user_name, ip):
+    def user_login(self, user_name, ip, key):
         user = self.get_user_by_name(user_name)
         if user:
             user.is_online = True
             user.last_login = datetime.datetime.now()
+            if user.pubkey != key:
+                user.pubkey = key
             self.add_login_history(user, ip)
             self.session.commit()
+        else:
+            raise ValueError('Пользователь не зарегистрирован.')
 
     def user_logout(self, user_name):
         user = self.get_user_by_name(user_name)
@@ -48,6 +52,18 @@ class Repository:
             self.session.commit()
         return user
 
+    def remove_user(self, user_name):
+        user = self.get_user_by_name(user_name)
+        if user:
+            self.session.query(User).filter_by(id=user.id).delete()
+            self.session.query(History).filter_by(user_id=user.id).delete()
+            contacts = self.session.query(contact_table).filter(
+                or_(contact_table.c.user_id == user.id,
+                    contact_table.c.contact_id == user.id)
+            )
+            contacts.delete(synchronize_session=False)
+            self.session.commit()
+
     def add_login_history(self, user, ip):
         history = History(user, ip)
         self.session.add(history)
@@ -55,14 +71,15 @@ class Repository:
 
     def get_user_by_name(self, name):
         user = self.session.query(User).filter(User.name == name)
-        if user.count():
-            return user.first()
-        else:
-            return None
+        return user.first() if user.count() else None
 
     def get_hash(self, user_name):
         user = self.get_user_by_name(user_name)
-        return user.password
+        return user.password if user else None
+
+    def get_pubkey(self , user_name):
+        user = self.get_user_by_name(user_name)
+        return user.pubkey
 
     def users_list(self, active=None):
         query = self.session.query(User.name)

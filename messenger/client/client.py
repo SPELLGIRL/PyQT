@@ -10,10 +10,12 @@
 """
 
 import socket
+import os
 import time
 import hashlib
 import hmac
 import binascii
+from Crypto.PublicKey import RSA
 from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP
 from exceptions import ResponseCodeLenError, MandatoryKeyError, \
@@ -38,6 +40,7 @@ class Client(metaclass=ClientVerifier):
         self.__user_name = None
         self.__password = None
         self.handler = None
+        self.keys = None
 
         self.__sock.settimeout(5)
         super().__init__()
@@ -67,6 +70,24 @@ class Client(metaclass=ClientVerifier):
     @property
     def sock(self):
         return self.__sock
+
+    def create_keys(self):
+        # Загружаем ключи с файла, если же файла нет, то генерируем новую пару.
+        dir_path = os.path.dirname(os.path.abspath(__file__))
+        keys_path = os.path.join(dir_path, 'keys')
+        key_file = os.path.join(keys_path, f'{self.user_name}.key')
+        if not os.path.exists(keys_path):
+            os.mkdir(keys_path)
+        if not os.path.exists(key_file):
+            keys = RSA.generate(2048, os.urandom)
+            with open(key_file, 'wb') as key:
+                key.write(keys.export_key())
+        else:
+            with open(key_file, 'rb') as key:
+                keys = RSA.import_key(key.read())
+        keys.publickey().export_key()
+
+        return keys
 
     def __check_presence(self):
         data = {
@@ -138,7 +159,7 @@ class Client(metaclass=ClientVerifier):
                     response = receive(self.__sock, self.__logger)[0]
 
                 # Получаем публичный ключ и декодируем его из байтов
-                # pubkey = self.keys.publickey().export_key().decode('ascii')
+                pubkey = self.keys.publickey().export_key().decode('ascii') if self.keys else None
 
                 # Запускаем процедуру авторизации
                 # Получаем хэш пароля
@@ -160,7 +181,8 @@ class Client(metaclass=ClientVerifier):
                         request_data = {
                             ACTION: AUTH,
                             FROM: self.user_name,
-                            TEXT: binascii.b2a_base64(digest).decode('ascii')
+                            TEXT: binascii.b2a_base64(digest).decode('ascii'),
+                            USER: pubkey
                         }
                         self.send(Message(**request_data))
                         responses = receive(self.__sock, self.__logger)
