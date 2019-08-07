@@ -7,7 +7,6 @@ from jim.config import *
 from exceptions import *
 from client import Client, log_decorator
 from Crypto.Cipher import PKCS1_OAEP
-from Crypto.PublicKey import RSA
 from db.repository import Repository
 from client_gui import ClientMainWindow, UserNameDialog
 from PyQt5.QtWidgets import QApplication, QMessageBox

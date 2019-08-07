@@ -207,8 +207,7 @@ class ClientMainWindow(QMainWindow):
         try:
             self.current_chat_key = self.transport.key_request(self.current_chat)
             if self.current_chat_key:
-                self.encryptor = PKCS1_OAEP.new(
-                    RSA.import_key(self.current_chat_key))
+                self.encryptor = PKCS1_OAEP.new(RSA.import_key(self.current_chat_key))
         except (OSError):
             self.current_chat_key = None
             self.encryptor = None
@@ -337,6 +336,7 @@ class ClientMainWindow(QMainWindow):
     # Слот приёма нового сообщений
     @pyqtSlot(Message)
     def message(self, message):
+        sender = message.sender
         # Получаем строку байтов
         encrypted_message = base64.b64decode(message.text)
         # Декодируем строку, при ошибке выдаём сообщение и завершаем функцию
@@ -347,9 +347,8 @@ class ClientMainWindow(QMainWindow):
                                   'Не удалось декодировать сообщение.')
             return
         # Сохраняем сообщение в базу и обновляем историю сообщений или открываем новый чат.
-        self.database.save_message(self.current_chat, 'in',
+        self.database.save_message(sender, 'in',
                                    decrypted_message.decode('utf8'))
-        sender = message.sender
         if sender == self.current_chat:
             self.history_list_update()
         else:
