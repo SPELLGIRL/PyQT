@@ -26,6 +26,8 @@ ERROR = 'error'
 
 # Значения
 PRESENCE = 'presence'
+REGISTER = 'register'
+AUTH = 'auth'
 SEND_MSG = 'send_msg'
 GET_CONTACTS = 'get_contacts'
 GET_CONNECTED = 'get_connected'

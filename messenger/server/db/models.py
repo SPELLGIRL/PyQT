@@ -1,4 +1,6 @@
 import datetime
+import hashlib
+import binascii
 from sqlalchemy import Column, Table, String, Integer, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import *
 from sqlalchemy.ext.declarative import declarative_base
@@ -16,6 +18,7 @@ class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    password = Column(String)
     last_login = Column(DateTime)
     is_online = Column(Boolean)
     sent = Column(Integer, default=0)
@@ -27,8 +30,9 @@ class User(Base):
                             secondaryjoin=id == contact_table.c.contact_id
                             )
 
-    def __init__(self, name):
+    def __init__(self, name, password):
         self.name = name
+        self.password = password
 
     def __repr__(self):
         return f'<Клиент {self.name}>'

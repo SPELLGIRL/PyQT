@@ -24,16 +24,15 @@ class Repository:
         Session = sessionmaker(bind=self.engine)
 
         self.session = Session()
+        self.new_connection = True
 
     def user_login(self, user_name, ip):
         user = self.get_user_by_name(user_name)
-
-        if not user:
-            user = self.add_user(user_name)
-        user.is_online = True
-        user.last_login = datetime.datetime.now()
-        self.add_login_history(user, ip)
-        self.session.commit()
+        if user:
+            user.is_online = True
+            user.last_login = datetime.datetime.now()
+            self.add_login_history(user, ip)
+            self.session.commit()
 
     def user_logout(self, user_name):
         user = self.get_user_by_name(user_name)
@@ -41,12 +40,13 @@ class Repository:
             user.is_online = False
             self.session.commit()
 
-    def add_user(self, user_name):
-        if not self.session.query(exists().where(User.name == user_name)).scalar():
-            user = User(user_name)
+    def add_user(self, user_name, password=None):
+        user = self.get_user_by_name(user_name)
+        if not user:
+            user = User(user_name, password)
             self.session.add(user)
             self.session.commit()
-            return user
+        return user
 
     def add_login_history(self, user, ip):
         history = History(user, ip)
@@ -59,6 +59,10 @@ class Repository:
             return user.first()
         else:
             return None
+
+    def get_hash(self, user_name):
+        user = self.get_user_by_name(user_name)
+        return user.password
 
     def users_list(self, active=None):
         query = self.session.query(User.name)

@@ -17,7 +17,8 @@ class Console:
 
     def __init__(self, parsed_args):
         self.__client = Client((parsed_args.addr, parsed_args.port))
-        self.__client.user_name = self.__validate_username(parsed_args.user)
+        self.__client.user_name, self.__client.password = \
+            self.__validate_username(parsed_args.user, parsed_args.password)
         self.__repo = Repository(self.__client.user_name)
         self.__listen_thread = Thread(target=self.receiver)
         self.__listen_thread.daemon = True
@@ -53,7 +54,7 @@ class Console:
         )
 
     @staticmethod
-    def __validate_username(user_name):
+    def __validate_username(user_name, password):
         while True:
             if user_name == 'Гость' or not user_name:
                 user_name = input('Введите своё имя: ') or \
@@ -67,7 +68,9 @@ class Console:
                     exit(0)
             else:
                 break
-        return user_name
+        if not password:
+            password = input('Введите пароль: ')
+        return user_name, password
 
     @log_decorator
     def interact(self):
@@ -111,8 +114,11 @@ class Console:
                           enumerate(self.__actions, 0)])
 
     def main(self):
-        if not self.__client.connect():
+        action = self.__client.connect()
+        if not action:
             raise ConnectionResetError
+        if not self.__client.auth(action):
+            raise ServerError('Неправильный пароль.')
         self.__repo.clear_contacts()
         for message in self.__client.load_contacts()[1:]:
             self.__repo.add_contact(message.user)
@@ -176,7 +182,10 @@ class Gui(QObject):
         QObject.__init__(self)
         self.__client = Client((parsed_args.addr, parsed_args.port))
         self.client_app = QApplication(sys.argv)
-        self.__client.user_name = self.__validate_username(parsed_args.user)
+        self.__client.user_name, self.__client.password = self.__validate_username(
+            parsed_args.user,
+            parsed_args.password
+        )
         self.__repo = Repository(self.__client.user_name)
         self.__client.handler = self
         self.user_name = self.__client.user_name
@@ -185,11 +194,16 @@ class Gui(QObject):
 
     def main(self):
         try:
-            if not self.__client.connect():
+            action = self.__client.connect()
+            if not action:
                 raise ConnectionResetError
+            if not self.__client.auth(action):
+                raise ServerError('Неправильный пароль.')
             self.__repo.clear_contacts()
-            for message in self.__client.load_contacts()[1:]:
-                self.__repo.add_contact(message.user)
+            contacts = self.__client.load_contacts()
+            if contacts:
+                for message in contacts[1:]:
+                    self.__repo.add_contact(message.user)
             self.__listen_thread.start()
             main_window = ClientMainWindow(self.__repo, self)
             main_window.make_connection(self)
@@ -221,14 +235,15 @@ class Gui(QObject):
             self.__listen_thread.is_alive = False
             self.connection_lost.emit()
 
-    def __validate_username(self, user_name):
+    def __validate_username(self, user_name, password):
         while True:
-            if user_name == 'Гость' or not user_name:
+            if user_name == 'Гость' or not user_name or not password:
                 start_dialog = UserNameDialog()
                 self.client_app.exec_()
                 # Если пользователь ввёл имя и нажал ОК, то сохраняем ведённое и удаляем объект, инааче выходим
                 if start_dialog.ok_pressed:
                     user_name = start_dialog.client_name.text()
+                    password = start_dialog.client_passwd.text()
                     user_name = user_name.strip()
                     try:
                         if len(user_name) > 25:
@@ -242,10 +257,11 @@ class Gui(QObject):
                     exit(0)
             else:
                 break
-        return user_name
+        return user_name, password
 
     def user_list_update(self):
-        self.__client.logger.debug(f'Запрос списка известных пользователей {self.__client.user_name}')
+        self.__client.logger.debug(
+            f'Запрос списка известных пользователей {self.__client.user_name}')
         data = {
             ACTION: GET_CONNECTED,
         }
@@ -294,6 +310,3 @@ class Gui(QObject):
                 self.__repo.save_message(response.sender, "in", response.text)
                 self.new_message.emit(response.sender)
         return response
-
-
-

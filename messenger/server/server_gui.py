@@ -45,7 +45,10 @@ def create_stat_model(database):
         user, last_seen, sent, recvd = row
         user = QStandardItem(user)
         user.setEditable(False)
-        last_seen = QStandardItem(str(last_seen.replace(microsecond=0)))
+        if last_seen:
+            last_seen = QStandardItem(str(last_seen.replace(microsecond=0)))
+        else:
+            last_seen = QStandardItem('')
         last_seen.setEditable(False)
         sent = QStandardItem(str(sent))
         sent.setEditable(False)

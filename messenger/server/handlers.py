@@ -49,12 +49,12 @@ class Gui:
         main_window.active_clients_table.resizeRowsToContents()
 
         def list_update():
-            if server.new_connection:
+            if database.new_connection:
                 main_window.active_clients_table.setModel(gui_create_model(database))
                 main_window.active_clients_table.resizeColumnsToContents()
                 main_window.active_clients_table.resizeRowsToContents()
                 with conflag_lock:
-                    server.new_connection = False
+                    database.new_connection = False
 
         def show_statistics():
             global stat_window

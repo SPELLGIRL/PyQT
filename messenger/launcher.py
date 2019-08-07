@@ -57,12 +57,13 @@ class Launcher:
         for i in range(self.__num):
             if self.__client_mode == 'gui':
                 self.__clients.append(
-                    subprocess.Popen(f'python client -u test{i} -m gui'))
+                    subprocess.Popen(f'python client -u test{i} -p test{i} -m gui'))
             else:
                 self.__clients.append(
-                    subprocess.Popen(f'python client -u test{i}',
+                    subprocess.Popen(f'python client -u test{i} -p test{i}',
                                      creationflags=subprocess.CREATE_NEW_CONSOLE))
-        time.sleep(5)
+        time.sleep(10)
+        print('Готово!')
 
     def close(self):
         while self.__clients:
