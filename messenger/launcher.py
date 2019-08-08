@@ -1,5 +1,6 @@
 import subprocess
 import time
+import os
 from argparse import ArgumentParser
 
 
@@ -63,7 +64,6 @@ class Launcher:
                     subprocess.Popen(f'python client -u test{i} -p test{i}',
                                      creationflags=subprocess.CREATE_NEW_CONSOLE))
         time.sleep(10)
-        print('Готово!')
 
     def close(self):
         while self.__clients:
@@ -95,6 +95,7 @@ def parse_args():
 
 
 def run():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     args = parse_args()
     launcher = Launcher(args.num, args.run, args.sm, args.cm)
     launcher.main()
