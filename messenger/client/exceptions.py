@@ -20,7 +20,7 @@ class ResponseCodeError(Exception):
 class ResponseCodeLenError(ResponseCodeError):
     def __str__(self):
         return f'Неверная длина кода {self.code}. ' \
-            f'Длина кода должна быть 3 символа.'
+               f'Длина кода должна быть 3 символа.'
 
 
 # исключение. отсутствует обязательный атрибут response
@@ -40,7 +40,5 @@ class ServerError(Exception):
         return self.text
 
 
-CUSTOM_EXCEPTIONS = (
-    UsernameToLongError, ResponseCodeError, ResponseCodeLenError,
-    MandatoryKeyError, ServerError
-)
+CUSTOM_EXCEPTIONS = (UsernameToLongError, ResponseCodeError,
+                     ResponseCodeLenError, MandatoryKeyError, ServerError)

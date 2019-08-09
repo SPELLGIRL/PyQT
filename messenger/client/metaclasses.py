@@ -16,9 +16,11 @@ class ClientVerifier(type):
                             methods.append(i.argval)
         for command in ('accept', 'listen'):
             if command in methods:
-                raise TypeError('В классе обнаружено использование запрещённого метода')
+                raise TypeError(
+                    'В классе обнаружено использование запрещённого метода')
         if 'send' in methods or 'receive' in methods:
             pass
         else:
-            raise TypeError('Отсутствуют вызовы функций, работающих с сокетами.')
+            raise TypeError(
+                'Отсутствуют вызовы функций, работающих с сокетами.')
         super().__init__(clsname, bases, clsdict)

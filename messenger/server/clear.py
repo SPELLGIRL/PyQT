@@ -5,6 +5,8 @@ pattern = r'^(((\S*)\.log\.((19|[2-9]\d)\d{2}))\-(0[13578]|1[02])\-(0[1-9]|[12]\
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 for root, dirs, files in os.walk(cur_dir):
     for file in files:
-        if file.endswith(('.log', '.db', '.key')) or re.fullmatch(pattern, file):
+        if file.endswith(
+            ('.log', '.db', '.key')
+        ) or re.fullmatch(pattern, file):
             print(os.path.join(root, file))
             os.remove(os.path.join(root, file))

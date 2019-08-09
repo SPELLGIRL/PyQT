@@ -4,8 +4,10 @@
 - формирует ​​ответ ​к​лиенту;
 - отправляет ​​ответ ​к​лиенту;
 - имеет ​​параметры ​к​омандной ​с​троки:
-- -p ​​<port> ​-​ ​​TCP-порт ​​для ​​работы ​(​по ​у​молчанию ​​использует ​​порт ​​8000);
-- -a ​​<addr> ​-​ ​I​P-адрес ​​для ​​прослушивания ​(​по ​у​молчанию ​с​лушает ​​все ​​доступные ​​адреса).
+- -p ​​<port> ​-​ ​​TCP-порт ​​для ​​работы ​
+(​по ​у​молчанию ​​использует ​​порт ​​8000);
+- -a ​​<addr> ​-​ ​I​P-адрес ​​для ​​прослушивания ​
+(​по ​у​молчанию ​с​лушает ​​все ​​доступные ​​адреса).
 """
 import select
 from argparse import ArgumentParser
@@ -28,10 +30,8 @@ conflag_lock = threading.Lock()
 
 
 class Dispatcher:
-    __slots__ = (
-        'sock', 'user_name', '__logger', '__repo', '__in', '__out', 'status',
-        'random_str', 'ip'
-    )
+    __slots__ = ('sock', 'user_name', '__logger', '__repo', '__in', '__out',
+                 'status', 'random_str', 'ip')
 
     def __init__(self, sock, ip, repository):
         self.sock = sock
@@ -49,24 +49,20 @@ class Dispatcher:
         self.release()
 
     def create_digest(self, password):
-        # Создаём хэш пароля и связки с рандомной строкой, сохраняем серверную версию ключа
+        # Создаём хэш пароля и связки с рандомной строкой,
+        # сохраняем серверную версию ключа
         hash_str = hmac.new(password, self.random_str)
         return hash_str.digest()
 
     def auth(self, request):
         def auth_request():
-            auth_data = {
-                ACTION: AUTH,
-                TEXT: self.random_str.decode('ascii')
-            }
+            auth_data = {ACTION: AUTH, TEXT: self.random_str.decode('ascii')}
             return auth_data
 
         if request.action == PRESENCE:
             self.user_name = request.sender
             if request.sender in self.__repo.users_list(active=True):
-                data = {
-                    TEXT: 'Имя пользователя уже занято.'
-                }
+                data = {TEXT: 'Имя пользователя уже занято.'}
                 return forbidden(**data)
             elif not self.__repo.get_user_by_name(request.sender):
                 data = {
@@ -79,17 +75,19 @@ class Dispatcher:
         elif request.action == REGISTER:
             passwd_bytes = request.text.encode('utf-8')
             salt = request.sender.lower().encode('utf-8')
-            passwd_hash = hashlib.pbkdf2_hmac('sha512', passwd_bytes, salt, 10000)
+            passwd_hash = hashlib.pbkdf2_hmac('sha512', passwd_bytes, salt,
+                                              10000)
             self.__repo.add_user(request.sender, binascii.hexlify(passwd_hash))
             data = auth_request()
             return success(**data)
         elif request.action == AUTH and request.text:
             client_digest = binascii.a2b_base64(request.text)
-            # Если ответ клиента корректный, то сохраняем его в список пользователей.
+            # Если ответ клиента корректный,
+            # то сохраняем его в список пользователей.
             digest = self.create_digest(self.__repo.get_hash(request.sender))
             if hmac.compare_digest(digest, client_digest):
-                # добавляем пользователя в список активных и если у него изменился
-                # открытый ключ сохраняем новый
+                # добавляем пользователя в список активных
+                # и если у него изменился открытый ключ сохраняем новый
                 self.__repo.user_login(self.user_name, self.ip, request.user)
                 self.__repo.new_connection = True
                 return success()
@@ -160,9 +158,7 @@ class Dispatcher:
             return responses
         # Если это запрос публичного ключа пользователя
         elif request.action == PUBLIC_KEY_REQUEST and request.user:
-            data = {
-                TEXT: self.__repo.get_pubkey(request.user)
-            }
+            data = {TEXT: self.__repo.get_pubkey(request.user)}
             if data[TEXT]:
                 return success(**data)
             else:
@@ -246,8 +242,7 @@ class Server(threading.Thread, metaclass=ServerVerifier):
                     w = []
                     try:
                         r, w, e = select.select(self.__client_sockets,
-                                                self.__client_sockets,
-                                                [], 0)
+                                                self.__client_sockets, [], 0)
                     except Exception:
                         pass
                     self.__input(r)
@@ -292,7 +287,8 @@ class Server(threading.Thread, metaclass=ServerVerifier):
         self.__repo.user_logout(name.user_name)
         self.__repo.new_connection = True
         info_msg = f'Клиент {name.user_name} отключён. ' \
-                   f'Текущее количество клиентов: {len(self.__client_sockets)}.'
+                   f'Текущее количество клиентов: ' \
+                   f'{len(self.__client_sockets)}.'
         self.__logger.info(info_msg)
         client.close()
 
@@ -307,24 +303,21 @@ class Server(threading.Thread, metaclass=ServerVerifier):
 
 def parse_args(default_ip=DEFAULT_IP, default_port=DEFAULT_PORT):
     parser = ArgumentParser(description='Запуск сервера.')
-    parser.add_argument(
-        '-a', nargs='?', default=f'{default_ip}', type=str,
-        help='ip адрес интерфейса (по умолчанию любой)'
-    )
-    parser.add_argument(
-        '-p', nargs='?', default=default_port, type=int,
-        help='порт сервера в диапазоне от 1024 до 65535'
-    )
-    parser.add_argument(
-        '-m',
-        default='console',
-        type=str.lower,
-        nargs='?',
-        choices=['gui', 'console'],
-        help='Mode: GUI, Console (default console)')
+    parser.add_argument('-a',
+                        nargs='?',
+                        default=f'{default_ip}',
+                        type=str,
+                        help='ip адрес интерфейса (по умолчанию любой)')
+    parser.add_argument('-p',
+                        nargs='?',
+                        default=default_port,
+                        type=int,
+                        help='порт сервера в диапазоне от 1024 до 65535')
+    parser.add_argument('-m',
+                        default='console',
+                        type=str.lower,
+                        nargs='?',
+                        choices=['gui', 'console'],
+                        help='Mode: GUI, Console (default console)')
     result = parser.parse_args()
-    # if result.p not in range(1024, 65535):
-    #     parser.error(
-    #         f'argument -p: invalid choice: {result.p} (choose from 1024-65535)'
-    #     )
     return result

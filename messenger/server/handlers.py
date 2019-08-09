@@ -26,16 +26,12 @@ class Gui:
         config = configparser.ConfigParser()
         dir_path = os.path.dirname(os.path.realpath(__file__))
         config.read(f"{dir_path}/{'server.ini'}")
-        result = parse_args(
-            default_ip=config['SETTINGS']['listen_address'],
-            default_port=config['SETTINGS']['default_port']
-        )
+        result = parse_args(default_ip=config['SETTINGS']['listen_address'],
+                            default_port=config['SETTINGS']['default_port'])
         listen_address = result.a
         listen_port = result.p
-        database = Repository(
-            config['SETTINGS']['Database_path'],
-            config['SETTINGS']['Database_file']
-        )
+        database = Repository(config['SETTINGS']['Database_path'],
+                              config['SETTINGS']['Database_file'])
         server = Server((listen_address, listen_port), database)
         server.handler = self
         server.daemon = True
@@ -50,7 +46,8 @@ class Gui:
 
         def list_update():
             if database.new_connection:
-                main_window.active_clients_table.setModel(gui_create_model(database))
+                main_window.active_clients_table.setModel(
+                    gui_create_model(database))
                 main_window.active_clients_table.resizeColumnsToContents()
                 main_window.active_clients_table.resizeRowsToContents()
                 with conflag_lock:
@@ -68,8 +65,7 @@ class Gui:
             global rm_user_window
             rm_user_window = DelUserDialog()
             rm_user_window.selector.addItems(
-                [item for item in database.users_list()]
-            )
+                [item for item in database.users_list()])
             rm_user_window.btn_ok.clicked.connect(remove_user)
 
         def remove_user():
@@ -96,13 +92,15 @@ class Gui:
             try:
                 port = int(config_window.port.text())
             except ValueError:
-                message.warning(config_window, 'Ошибка', 'Порт должен быть числом')
+                message.warning(config_window, 'Ошибка',
+                                'Порт должен быть числом')
             else:
                 config['SETTINGS']['listen_address'] = config_window.ip.text()
                 if 1023 < port < 65536:
                     config['SETTINGS']['default_port'] = str(port)
                     print(port)
-                    with open(os.path.join(dir_path, 'server.ini'), 'w') as conf:
+                    with open(os.path.join(dir_path, 'server.ini'),
+                              'w') as conf:
                         config.write(conf)
                         message.information(config_window, 'OK',
                                             'Настройки успешно сохранены!')

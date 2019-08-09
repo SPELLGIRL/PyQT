@@ -9,7 +9,6 @@ class Log:
     """
     Класс декоратор для логирования функций
     """
-
     def __init__(self, logger):
         self._func = None
         self._obj = None
@@ -17,7 +16,6 @@ class Log:
         self._logger = logger
 
     def __call__(self, func):
-
         def decorator(*args, **kwargs):
             self._func = func
             if len(self._func.__qualname__.split('.')) > 1:
@@ -56,9 +54,11 @@ class Log:
 
     @property
     def _info(self):
-        string = list(filter(None,
-                             [i if self._func.__name__ in i else None for i in
-                              traceback.format_stack()]))[0]
+        string = list(
+            filter(None, [
+                i if self._func.__name__ in i else None
+                for i in traceback.format_stack()
+            ]))[0]
         _line = string.strip().split(',')[1].split()[-1]
         _filename = \
             string.strip().split('"')[1].replace('/', '\\').split('\\')[-1]
@@ -94,12 +94,14 @@ def login_required(func):
             for arg in args:
                 if args[0].status:
                     found = True
-            # Теперь надо проверить, что передаваемые аргументы не presence сообщение
+            # Теперь надо проверить, что передаваемые аргументы
+            # не presence сообщение
             for arg in args:
                 if isinstance(arg, Message):
                     if arg.action and arg.action == PRESENCE:
                         found = True
-            # Если не не авторизован и не presence сообщение, то вызываем исключение.
+            # Если не не авторизован и не presence сообщение,
+            # то вызываем исключение.
             if not found:
                 raise TypeError
 

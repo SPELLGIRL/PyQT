@@ -90,10 +90,7 @@ class Client(metaclass=ClientVerifier):
         return keys
 
     def __check_presence(self):
-        data = {
-            ACTION: PRESENCE,
-            FROM: self.__user_name
-        }
+        data = {ACTION: PRESENCE, FROM: self.__user_name}
         request = Message(data)
         self.send(request)
         messages = receive(self.__sock, self.__logger)
@@ -101,10 +98,7 @@ class Client(metaclass=ClientVerifier):
             else False
 
     def load_contacts(self):
-        data = {
-            ACTION: GET_CONTACTS,
-            FROM: self.user_name
-        }
+        data = {ACTION: GET_CONTACTS, FROM: self.user_name}
         request = Message(data)
         self.send(request)
         time.sleep(1)
@@ -159,7 +153,8 @@ class Client(metaclass=ClientVerifier):
                     response = receive(self.__sock, self.__logger)[0]
 
                 # Получаем публичный ключ и декодируем его из байтов
-                pubkey = self.keys.publickey().export_key().decode('ascii') if self.keys else None
+                pubkey = self.keys.publickey().export_key().decode(
+                    'ascii') if self.keys else None
 
                 # Запускаем процедуру авторизации
                 # Получаем хэш пароля
@@ -173,7 +168,8 @@ class Client(metaclass=ClientVerifier):
                     if response.response == FORBIDDEN:
                         raise ServerError(response.text)
                     elif response.response == OK:
-                        # Если всё нормально, то продолжаем процедуру авторизации.
+                        # Если всё нормально,
+                        # то продолжаем процедуру авторизации.
                         ans_data = response.text
                         hash_str = hmac.new(passwd_hash_string,
                                             ans_data.encode('utf-8'))
@@ -206,36 +202,31 @@ class Client(metaclass=ClientVerifier):
 
 def parse_args():
     parser = ArgumentParser(description='Запуск клиента.')
-    parser.add_argument(
-        'addr', nargs='?', default=f'{DEFAULT_IP}', type=str,
-        help='IP адрес сервера'
-    )
-    parser.add_argument(
-        'port', nargs='?', default=f'{DEFAULT_PORT}', type=int,
-        help='порт сервера'
-    )
-    parser.add_argument(
-        '-u',
-        '--user',
-        default='Гость',
-        nargs='?',
-        help='Имя пользователя(по умолчанию Гость_****)')
-    parser.add_argument(
-        '-p',
-        '--password',
-        nargs='?',
-        help='Пароль пользователя')
-    parser.add_argument(
-        '-m',
-        '--mode',
-        default='console',
-        type=str.lower,
-        nargs='?',
-        choices=['gui', 'console'],
-        help='Mode: GUI, Console (default console)')
+    parser.add_argument('addr',
+                        nargs='?',
+                        default=f'{DEFAULT_IP}',
+                        type=str,
+                        help='IP адрес сервера')
+    parser.add_argument('port',
+                        nargs='?',
+                        default=f'{DEFAULT_PORT}',
+                        type=int,
+                        help='порт сервера')
+    parser.add_argument('-u',
+                        '--user',
+                        default='Гость',
+                        nargs='?',
+                        help='Имя пользователя(по умолчанию Гость_****)')
+    parser.add_argument('-p',
+                        '--password',
+                        nargs='?',
+                        help='Пароль пользователя')
+    parser.add_argument('-m',
+                        '--mode',
+                        default='console',
+                        type=str.lower,
+                        nargs='?',
+                        choices=['gui', 'console'],
+                        help='Mode: GUI, Console (default console)')
     result = parser.parse_args()
-    # if result.port not in range(1024, 65535):
-    #     parser.error(
-    #         f'argument port: invalid choice: {result.port} (choose from 1024-65535)'
-    #     )
     return result

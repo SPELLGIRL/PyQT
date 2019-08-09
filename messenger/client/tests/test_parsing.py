@@ -1,15 +1,13 @@
 import sys
 import os
+import unittest
+from main import parse_args
 
 module_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(module_dir)
 
-import unittest
-from main import parse_args
-
 
 class TestParsing(unittest.TestCase):
-
     def test_number_parameters(self):
         self.assertEqual(len(parse_args().__dict__), 3,
                          'Нет необходимых трёх параметров для запуска')

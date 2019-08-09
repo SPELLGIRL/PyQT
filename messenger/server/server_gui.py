@@ -1,7 +1,8 @@
 import sys
 import time
 from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication, QLabel, \
-    QTableView, QDialog, QPushButton, QLineEdit, QFileDialog, QMessageBox, QComboBox
+    QTableView, QDialog, QPushButton, QLineEdit, QFileDialog, QMessageBox,\
+    QComboBox
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt
 
@@ -11,9 +12,8 @@ def gui_create_model(database):
         try:
             list_users = database.users_list(active=True)
             qt_list = QStandardItemModel()
-            qt_list.setHorizontalHeaderLabels(['Имя Клиента',
-                                               'Время подключения',
-                                               'IP Адрес'])
+            qt_list.setHorizontalHeaderLabels(
+                ['Имя Клиента', 'Время подключения', 'IP Адрес'])
             for user_name in list_users:
                 row = database.login_history(user_name)[-1]
                 name, date_time, ip = row
@@ -35,12 +35,10 @@ def create_stat_model(database):
     hist_list = database.message_history()
 
     qt_list = QStandardItemModel()
-    qt_list.setHorizontalHeaderLabels(
-        ['Имя Клиента',
-         'Последний раз входил',
-         'Сообщений отправлено',
-         'Сообщений получено']
-    )
+    qt_list.setHorizontalHeaderLabels([
+        'Имя Клиента', 'Последний раз входил', 'Сообщений отправлено',
+        'Сообщений получено'
+    ])
     for row in hist_list:
         user, last_seen, sent, recvd = row
         user = QStandardItem(user)
@@ -158,7 +156,8 @@ class ConfigWindow(QDialog):
         self.ip_label.setFixedSize(180, 15)
 
         self.ip_label_note = QLabel(
-            ' оставьте это поле пустым, чтобы\n принимать соединения с любых адресов.',
+            ' оставьте это поле пустым, '
+            'чтобы\n принимать соединения с любых адресов.',
             self)
         self.ip_label_note.move(10, 168)
         self.ip_label_note.setFixedSize(500, 30)
@@ -186,7 +185,8 @@ class DelUserDialog(QDialog):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setModal(True)
 
-        self.selector_label = QLabel('Выберите пользователя для удаления:', self)
+        self.selector_label = QLabel('Выберите пользователя для удаления:',
+                                     self)
         self.selector_label.setFixedSize(200, 20)
         self.selector_label.move(10, 0)
 

@@ -6,11 +6,9 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-contact_table = Table(
-    'contact', Base.metadata,
-    Column('user_id', Integer, ForeignKey('user.id')),
-    Column('contact_id', Integer, ForeignKey('user.id'))
-)
+contact_table = Table('contact', Base.metadata,
+                      Column('user_id', Integer, ForeignKey('user.id')),
+                      Column('contact_id', Integer, ForeignKey('user.id')))
 
 
 class User(Base):
@@ -24,11 +22,13 @@ class User(Base):
     sent = Column(Integer, default=0)
     receive = Column(Integer, default=0)
     history = relationship('History', back_populates='user')
-    contacts = relationship('User', secondary=contact_table,
-                            backref='owner',
-                            primaryjoin=id == contact_table.c.user_id,
-                            secondaryjoin=id == contact_table.c.contact_id,
-                            )
+    contacts = relationship(
+        'User',
+        secondary=contact_table,
+        backref='owner',
+        primaryjoin=id == contact_table.c.user_id,
+        secondaryjoin=id == contact_table.c.contact_id,
+    )
 
     def __init__(self, name, password):
         self.name = name

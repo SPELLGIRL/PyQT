@@ -44,4 +44,6 @@ class MessageHistory(Base):
         self.time = datetime.datetime.now()
 
     def __repr__(self):
-        return f'<Сообщение {"отправлено" if self.direction == "in" else "получено от"} {self.contact}, {self.time}>'
+        return f'<Сообщение ' \
+               f'{"отправлено" if self.direction == "in" else "получено от"}' \
+               f' {self.contact}, {self.time}>'

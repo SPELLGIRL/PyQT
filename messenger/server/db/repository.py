@@ -59,8 +59,7 @@ class Repository:
             self.session.query(History).filter_by(user_id=user.id).delete()
             contacts = self.session.query(contact_table).filter(
                 or_(contact_table.c.user_id == user.id,
-                    contact_table.c.contact_id == user.id)
-            )
+                    contact_table.c.contact_id == user.id))
             contacts.delete(synchronize_session=False)
             self.session.commit()
 
@@ -77,7 +76,7 @@ class Repository:
         user = self.get_user_by_name(user_name)
         return user.password if user else None
 
-    def get_pubkey(self , user_name):
+    def get_pubkey(self, user_name):
         user = self.get_user_by_name(user_name)
         return user.pubkey
 
@@ -85,12 +84,12 @@ class Repository:
         query = self.session.query(User.name)
         if active is not None:
             query = query.filter(User.is_online == active)
-        return [value for (value,) in query.all()]
+        return [value for (value, ) in query.all()]
 
     def login_history(self, user_name=None):
-        query = self.session.query(User.name,
-                                   func.strftime('%Y-%m-%d %H:%M', History.time),
-                                   History.ip).join(User)
+        query = self.session.query(
+            User.name, func.strftime('%Y-%m-%d %H:%M', History.time),
+            History.ip).join(User)
         if user_name:
             query = query.filter(User.name == user_name)
         return [value for value in query.all()]

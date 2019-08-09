@@ -14,6 +14,7 @@ from PyQt5.QtCore import pyqtSignal, QObject
 
 socket_lock = Lock()
 
+
 class Console:
     __slots__ = ('__client', '__actions', '__listen_thread', '__repo')
 
@@ -33,7 +34,10 @@ class Console:
             {
                 ACTION: SEND_MSG,
                 'name': 'Отправить сообщение(* - всем)',
-                'params': (TO, TEXT,)
+                'params': (
+                    TO,
+                    TEXT,
+                )
             },
             {
                 ACTION: GET_CONTACTS,
@@ -42,12 +46,12 @@ class Console:
             {
                 ACTION: ADD_CONTACT,
                 'name': 'Добавить контакт',
-                'params': (USER,),
+                'params': (USER, ),
             },
             {
                 ACTION: DEL_CONTACT,
                 'name': 'Удалить контакт',
-                'params': (USER,),
+                'params': (USER, ),
             },
             {
                 ACTION: 'help',
@@ -112,8 +116,10 @@ class Console:
 
     @property
     def __help_info(self):
-        return '\n'.join([f'{key}. {action["name"]}' for key, action in
-                          enumerate(self.__actions, 0)])
+        return '\n'.join([
+            f'{key}. {action["name"]}'
+            for key, action in enumerate(self.__actions, 0)
+        ])
 
     def key_request(self, user_name):
         data = {
@@ -128,7 +134,8 @@ class Console:
                 response = responses[0]
                 if response.response and response.text:
                     return response.text
-            self.__client.logger.error(f'Не удалось получить ключ собеседника{user_name}.')
+            self.__client.logger.error(
+                f'Не удалось получить ключ собеседника{user_name}.')
 
     def main(self):
         action = self.__client.connect()
@@ -163,7 +170,8 @@ class Console:
             while True:
                 messages = []
                 try:
-                    messages = receive(self.__client.sock, self.__client.logger)
+                    messages = receive(self.__client.sock,
+                                       self.__client.logger)
                 except socket.timeout:
                     pass
                 while len(messages):
@@ -199,10 +207,8 @@ class Gui(QObject):
         QObject.__init__(self)
         self.__client = Client((parsed_args.addr, parsed_args.port))
         self.client_app = QApplication(sys.argv)
-        self.__client.user_name, self.__client.password = self.__validate_username(
-            parsed_args.user,
-            parsed_args.password
-        )
+        self.__client.user_name, self.__client.password = \
+            self.__validate_username(parsed_args.user, parsed_args.password)
         self.__client.keys = self.__client.create_keys()
         self.__repo = Repository(self.__client.user_name)
         self.__client.handler = self
@@ -243,7 +249,8 @@ class Gui(QObject):
             while True:
                 messages = []
                 try:
-                    messages = receive(self.__client.sock, self.__client.logger)
+                    messages = receive(self.__client.sock,
+                                       self.__client.logger)
                 except socket.timeout:
                     pass
                 while len(messages):
@@ -259,7 +266,8 @@ class Gui(QObject):
             if user_name == 'Гость' or not user_name or not password:
                 start_dialog = UserNameDialog()
                 self.client_app.exec_()
-                # Если пользователь ввёл имя и нажал ОК, то сохраняем ведённое и удаляем объект, инааче выходим
+                # Если пользователь ввёл имя и нажал ОК,
+                # то сохраняем ведённое и удаляем объект, инааче выходим
                 if start_dialog.ok_pressed:
                     user_name = start_dialog.client_name.text()
                     password = start_dialog.client_passwd.text()
@@ -304,11 +312,7 @@ class Gui(QObject):
         self.__client.send(Message(**data))
 
     def send_message(self, to, message):
-        data = {
-            ACTION: SEND_MSG,
-            TO: to,
-            TEXT: message
-        }
+        data = {ACTION: SEND_MSG, TO: to, TEXT: message}
         self.__client.send(Message(**data))
 
     def key_request(self, user_name):
@@ -324,7 +328,8 @@ class Gui(QObject):
                 response = responses[0]
                 if response.response and response.text:
                     return response.text
-            self.__client.logger.error(f'Не удалось получить ключ собеседника{user_name}.')
+            self.__client.logger.error(
+                f'Не удалось получить ключ собеседника{user_name}.')
 
     def receive_callback(self, response):
         if isinstance(response, str):

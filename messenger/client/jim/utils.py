@@ -87,16 +87,12 @@ def success(**kwargs):
 
 
 def accepted(**kwargs):
-    data = {
-        RESPONSE: ACCEPTED
-    }
+    data = {RESPONSE: ACCEPTED}
     return Message(data, **kwargs)
 
 
 def forbidden(**kwargs):
-    data = {
-        RESPONSE: FORBIDDEN
-    }
+    data = {RESPONSE: FORBIDDEN}
     return Message(data, **kwargs)
 
 
