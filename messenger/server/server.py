@@ -12,35 +12,90 @@ from argparse import ArgumentParser
 from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
 import socket
 import threading
+import hmac
+import hashlib
+import binascii
+import os
 from jim.utils import Message, receive, accepted, success, error, forbidden
 from jim.config import *
 from log.config import server_logger
-from decorators import Log
+from decorators import Log, login_required
 from metaclasses import ServerVerifier
 from descriptors import Port
 
 log_decorator = Log(server_logger)
-new_connection = False
 conflag_lock = threading.Lock()
 
 
 class Dispatcher:
     __slots__ = (
-        'sock', 'user_name', '__logger', '__repo', '__in', '__out', 'status'
+        'sock', 'user_name', '__logger', '__repo', '__in', '__out', 'status',
+        'random_str', 'ip'
     )
 
-    def __init__(self, sock, repository):
+    def __init__(self, sock, ip, repository):
         self.sock = sock
         self.user_name = None
+        self.ip = ip
         self.__repo = repository
         self.__logger = server_logger
         self.__in = []
         self.__out = []
-
+        # Набор байтов в hex представлении
+        self.random_str = binascii.hexlify(os.urandom(64))
         self.status = False
         self.receive()
         self.process()
         self.release()
+
+    def create_digest(self, password):
+        # Создаём хэш пароля и связки с рандомной строкой, сохраняем серверную версию ключа
+        hash_str = hmac.new(password, self.random_str)
+        return hash_str.digest()
+
+    def auth(self, request):
+        def auth_request():
+            auth_data = {
+                ACTION: AUTH,
+                TEXT: self.random_str.decode('ascii')
+            }
+            return auth_data
+
+        if request.action == PRESENCE:
+            self.user_name = request.sender
+            if request.sender in self.__repo.users_list(active=True):
+                data = {
+                    TEXT: 'Имя пользователя уже занято.'
+                }
+                return forbidden(**data)
+            elif not self.__repo.get_user_by_name(request.sender):
+                data = {
+                    ACTION: REGISTER,
+                }
+            else:
+                data = auth_request()
+            self.status = True
+            return success(**data)
+        elif request.action == REGISTER:
+            passwd_bytes = request.text.encode('utf-8')
+            salt = request.sender.lower().encode('utf-8')
+            passwd_hash = hashlib.pbkdf2_hmac('sha512', passwd_bytes, salt, 10000)
+            self.__repo.add_user(request.sender, binascii.hexlify(passwd_hash))
+            data = auth_request()
+            return success(**data)
+        elif request.action == AUTH and request.text:
+            client_digest = binascii.a2b_base64(request.text)
+            # Если ответ клиента корректный, то сохраняем его в список пользователей.
+            digest = self.create_digest(self.__repo.get_hash(request.sender))
+            if hmac.compare_digest(digest, client_digest):
+                # добавляем пользователя в список активных и если у него изменился
+                # открытый ключ сохраняем новый
+                self.__repo.user_login(self.user_name, self.ip, request.user)
+                self.__repo.new_connection = True
+                return success()
+            else:
+                self.status = False
+                return forbidden(text='Неверный пароль.')
 
     def receive(self):
         requests = receive(self.sock, self.__logger)
@@ -54,20 +109,15 @@ class Dispatcher:
             if not request.sender:
                 request.sender = self.user_name
             response = self.run_action(request)
-            if request.action == PRESENCE and response.response == OK:
-                self.user_name = request.sender
-                self.status = True
             if isinstance(response, Message):
                 self.__out.append(response)
             else:
                 self.__out.extend(response)
 
+    @login_required
     def run_action(self, request):
-        if request.action == PRESENCE:
-            if request.sender in self.__repo.users_list(active=True):
-                return forbidden()
-            self.__repo.add_user(request.sender)
-            return success()
+        if request.action in (PRESENCE, REGISTER, AUTH):
+            return self.auth(request)
         elif request.action == SEND_MSG:
             contacts = request.destination.replace(' ', '').split(',')
             if len(contacts) == 1 and (not contacts[0] or contacts[0] == '*'):
@@ -100,7 +150,7 @@ class Dispatcher:
             return responses
         elif request.action == GET_CONNECTED:
             names = self.__repo.users_list(active=True)
-            responses = [accepted()]
+            responses = []
             for contact in names:
                 data = {
                     ACTION: GET_CONNECTED,
@@ -108,6 +158,15 @@ class Dispatcher:
                 }
                 responses.append(accepted(**data))
             return responses
+        # Если это запрос публичного ключа пользователя
+        elif request.action == PUBLIC_KEY_REQUEST and request.user:
+            data = {
+                TEXT: self.__repo.get_pubkey(request.user)
+            }
+            if data[TEXT]:
+                return success(**data)
+            else:
+                return error('Нет публичного ключа для данного пользователя')
         elif request.action == ADD_CONTACT:
             if request.sender == request.user:
                 return error('Нельзя добавить себя')
@@ -153,7 +212,6 @@ class Server(threading.Thread, metaclass=ServerVerifier):
         self.__out = []
         self.__addr, self.__port = address
         self.handler = None
-        self.new_connection = True
 
         self.__sock.bind((self.__addr, self.__port))
         self.__sock.listen(MAX_CONNECTIONS)
@@ -171,9 +229,7 @@ class Server(threading.Thread, metaclass=ServerVerifier):
             while True:
                 try:
                     client, address = self.__sock.accept()
-                    dispatcher = Dispatcher(client, self.__repo)
-                    self.__repo.user_login(dispatcher.user_name, address[0])
-                    self.new_connection = True
+                    dispatcher = Dispatcher(client, address[0], self.__repo)
                 except OSError:
                     pass
                 else:
@@ -234,11 +290,16 @@ class Server(threading.Thread, metaclass=ServerVerifier):
         name = self.__socket_dispatcher.pop(client)
         self.__name_socket.pop(name.user_name)
         self.__repo.user_logout(name.user_name)
-        self.new_connection = True
+        self.__repo.new_connection = True
         info_msg = f'Клиент {name.user_name} отключён. ' \
                    f'Текущее количество клиентов: {len(self.__client_sockets)}.'
         self.__logger.info(info_msg)
         client.close()
+
+    def remove_client_by_name(self, user_name):
+        sock = self.__name_socket.get(user_name)
+        if sock:
+            self.__remove_client(sock)
 
     def __user_name(self, client):
         return self.__socket_dispatcher[client].user_name

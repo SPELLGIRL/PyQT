@@ -1,6 +1,9 @@
 from functools import wraps
 import traceback
 
+from jim.config import PRESENCE
+from jim.utils import Message
+
 
 class Log:
     """
@@ -80,3 +83,26 @@ class Log:
             message += f' result: {result}'
         # Возвращаем итоговое сообщение
         return message
+
+
+# Функция проверки, что клиент авторизован на сервере
+def login_required(func):
+    def checker(*args, **kwargs):
+        from server import Dispatcher
+        if isinstance(args[0], Dispatcher):
+            found = False
+            for arg in args:
+                if args[0].status:
+                    found = True
+            # Теперь надо проверить, что передаваемые аргументы не presence сообщение
+            for arg in args:
+                if isinstance(arg, Message):
+                    if arg.action and arg.action == PRESENCE:
+                        found = True
+            # Если не не авторизован и не presence сообщение, то вызываем исключение.
+            if not found:
+                raise TypeError
+
+        return func(*args, **kwargs)
+
+    return checker

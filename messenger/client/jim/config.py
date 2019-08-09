@@ -26,9 +26,12 @@ ERROR = 'error'
 
 # Значения
 PRESENCE = 'presence'
+REGISTER = 'register'
+AUTH = 'auth'
 SEND_MSG = 'send_msg'
 GET_CONTACTS = 'get_contacts'
 GET_CONNECTED = 'get_connected'
+PUBLIC_KEY_REQUEST = 'pubkey_request'
 ADD_CONTACT = 'add_contact'
 DEL_CONTACT = 'del_contact'
 READ_MESSAGES = 'read_messages'

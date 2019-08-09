@@ -1,5 +1,6 @@
 import datetime
-from sqlalchemy import Column, Table, String, Integer, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Table, String, Integer, Boolean, ForeignKey, \
+    DateTime, Text
 from sqlalchemy.orm import *
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -16,6 +17,8 @@ class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    password = Column(String)
+    pubkey = Column(Text)
     last_login = Column(DateTime)
     is_online = Column(Boolean)
     sent = Column(Integer, default=0)
@@ -24,11 +27,13 @@ class User(Base):
     contacts = relationship('User', secondary=contact_table,
                             backref='owner',
                             primaryjoin=id == contact_table.c.user_id,
-                            secondaryjoin=id == contact_table.c.contact_id
+                            secondaryjoin=id == contact_table.c.contact_id,
                             )
 
-    def __init__(self, name):
+    def __init__(self, name, password):
         self.name = name
+        self.password = password
+        self.pubkey = None
 
     def __repr__(self):
         return f'<Клиент {self.name}>'

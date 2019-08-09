@@ -1,23 +1,26 @@
 import socket
 import sys
-from threading import Thread
+from threading import Thread, Lock
 from random import randint
 from jim.utils import Message, receive
 from jim.config import *
 from exceptions import *
 from client import Client, log_decorator
+from Crypto.Cipher import PKCS1_OAEP
 from db.repository import Repository
 from client_gui import ClientMainWindow, UserNameDialog
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import pyqtSignal, QObject
 
+socket_lock = Lock()
 
 class Console:
     __slots__ = ('__client', '__actions', '__listen_thread', '__repo')
 
     def __init__(self, parsed_args):
         self.__client = Client((parsed_args.addr, parsed_args.port))
-        self.__client.user_name = self.__validate_username(parsed_args.user)
+        self.__client.user_name, self.__client.password = \
+            self.__validate_username(parsed_args.user, parsed_args.password)
         self.__repo = Repository(self.__client.user_name)
         self.__listen_thread = Thread(target=self.receiver)
         self.__listen_thread.daemon = True
@@ -53,7 +56,7 @@ class Console:
         )
 
     @staticmethod
-    def __validate_username(user_name):
+    def __validate_username(user_name, password):
         while True:
             if user_name == 'Гость' or not user_name:
                 user_name = input('Введите своё имя: ') or \
@@ -67,7 +70,9 @@ class Console:
                     exit(0)
             else:
                 break
-        return user_name
+        if not password:
+            password = input('Введите пароль: ')
+        return user_name, password
 
     @log_decorator
     def interact(self):
@@ -110,9 +115,27 @@ class Console:
         return '\n'.join([f'{key}. {action["name"]}' for key, action in
                           enumerate(self.__actions, 0)])
 
+    def key_request(self, user_name):
+        data = {
+            ACTION: PUBLIC_KEY_REQUEST,
+            FROM: self.__client.user_name,
+            USER: user_name
+        }
+        with socket_lock:
+            self.__client.send(Message(**data))
+            responses = receive(self.__client.sock, self.__client.logger)
+            if responses:
+                response = responses[0]
+                if response.response and response.text:
+                    return response.text
+            self.__client.logger.error(f'Не удалось получить ключ собеседника{user_name}.')
+
     def main(self):
-        if not self.__client.connect():
+        action = self.__client.connect()
+        if not action:
             raise ConnectionResetError
+        if not self.__client.auth(action):
+            raise ServerError('Неправильный пароль.')
         self.__repo.clear_contacts()
         for message in self.__client.load_contacts()[1:]:
             self.__repo.add_contact(message.user)
@@ -169,27 +192,37 @@ class Console:
 
 
 class Gui(QObject):
-    new_message = pyqtSignal(str)
+    new_message = pyqtSignal(Message)
     connection_lost = pyqtSignal()
 
     def __init__(self, parsed_args):
         QObject.__init__(self)
         self.__client = Client((parsed_args.addr, parsed_args.port))
         self.client_app = QApplication(sys.argv)
-        self.__client.user_name = self.__validate_username(parsed_args.user)
+        self.__client.user_name, self.__client.password = self.__validate_username(
+            parsed_args.user,
+            parsed_args.password
+        )
+        self.__client.keys = self.__client.create_keys()
         self.__repo = Repository(self.__client.user_name)
         self.__client.handler = self
         self.user_name = self.__client.user_name
+        self.decrypter = PKCS1_OAEP.new(self.__client.keys)
         self.__listen_thread = Thread(target=self.run)
         self.__listen_thread.daemon = True
 
     def main(self):
         try:
-            if not self.__client.connect():
+            action = self.__client.connect()
+            if not action:
                 raise ConnectionResetError
+            if not self.__client.auth(action):
+                raise ServerError('Неправильный пароль.')
             self.__repo.clear_contacts()
-            for message in self.__client.load_contacts()[1:]:
-                self.__repo.add_contact(message.user)
+            contacts = self.__client.load_contacts()
+            if contacts:
+                for message in contacts[1:]:
+                    self.__repo.add_contact(message.user)
             self.__listen_thread.start()
             main_window = ClientMainWindow(self.__repo, self)
             main_window.make_connection(self)
@@ -221,14 +254,15 @@ class Gui(QObject):
             self.__listen_thread.is_alive = False
             self.connection_lost.emit()
 
-    def __validate_username(self, user_name):
+    def __validate_username(self, user_name, password):
         while True:
-            if user_name == 'Гость' or not user_name:
+            if user_name == 'Гость' or not user_name or not password:
                 start_dialog = UserNameDialog()
                 self.client_app.exec_()
                 # Если пользователь ввёл имя и нажал ОК, то сохраняем ведённое и удаляем объект, инааче выходим
                 if start_dialog.ok_pressed:
                     user_name = start_dialog.client_name.text()
+                    password = start_dialog.client_passwd.text()
                     user_name = user_name.strip()
                     try:
                         if len(user_name) > 25:
@@ -242,10 +276,11 @@ class Gui(QObject):
                     exit(0)
             else:
                 break
-        return user_name
+        return user_name, password
 
     def user_list_update(self):
-        self.__client.logger.debug(f'Запрос списка известных пользователей {self.__client.user_name}')
+        self.__client.logger.debug(
+            f'Запрос списка известных пользователей {self.__client.user_name}')
         data = {
             ACTION: GET_CONNECTED,
         }
@@ -274,9 +309,22 @@ class Gui(QObject):
             TO: to,
             TEXT: message
         }
-        if to != self.user_name:
-            self.__repo.save_message(to, "out", message)
         self.__client.send(Message(**data))
+
+    def key_request(self, user_name):
+        data = {
+            ACTION: PUBLIC_KEY_REQUEST,
+            FROM: self.user_name,
+            USER: user_name
+        }
+        with socket_lock:
+            self.__client.send(Message(**data))
+            responses = receive(self.__client.sock, self.__client.logger)
+            if responses:
+                response = responses[0]
+                if response.response and response.text:
+                    return response.text
+            self.__client.logger.error(f'Не удалось получить ключ собеседника{user_name}.')
 
     def receive_callback(self, response):
         if isinstance(response, str):
@@ -291,9 +339,5 @@ class Gui(QObject):
                 self.__repo.add_contact(response.user)
         elif response.action == SEND_MSG:
             if response.sender != response.destination:
-                self.__repo.save_message(response.sender, "in", response.text)
-                self.new_message.emit(response.sender)
+                self.new_message.emit(response)
         return response
-
-
-

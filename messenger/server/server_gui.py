@@ -1,7 +1,7 @@
 import sys
 import time
 from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication, QLabel, \
-    QTableView, QDialog, QPushButton, QLineEdit, QFileDialog, QMessageBox
+    QTableView, QDialog, QPushButton, QLineEdit, QFileDialog, QMessageBox, QComboBox
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt
 
@@ -45,7 +45,10 @@ def create_stat_model(database):
         user, last_seen, sent, recvd = row
         user = QStandardItem(user)
         user.setEditable(False)
-        last_seen = QStandardItem(str(last_seen.replace(microsecond=0)))
+        if last_seen:
+            last_seen = QStandardItem(str(last_seen.replace(microsecond=0)))
+        else:
+            last_seen = QStandardItem('')
         last_seen.setEditable(False)
         sent = QStandardItem(str(sent))
         sent.setEditable(False)
@@ -63,11 +66,9 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(qApp.quit)
 
         self.refresh_button = QAction('Обновить список', self)
-
         self.config_btn = QAction('Настройки сервера', self)
-
         self.show_history_button = QAction('История клиентов', self)
-
+        self.remove_btn = QAction('Удаление пользователя', self)
         self.statusBar()
 
         self.toolbar = self.addToolBar('MainBar')
@@ -75,6 +76,7 @@ class MainWindow(QMainWindow):
         self.toolbar.addAction(self.refresh_button)
         self.toolbar.addAction(self.show_history_button)
         self.toolbar.addAction(self.config_btn)
+        self.toolbar.addAction(self.remove_btn)
 
         self.setFixedSize(800, 600)
         self.setWindowTitle('Messaging Server alpha release')
@@ -171,6 +173,35 @@ class ConfigWindow(QDialog):
         self.close_button = QPushButton('Закрыть', self)
         self.close_button.move(275, 220)
         self.close_button.clicked.connect(self.close)
+
+        self.show()
+
+
+class DelUserDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.setFixedSize(350, 120)
+        self.setWindowTitle('Удаление пользователя')
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setModal(True)
+
+        self.selector_label = QLabel('Выберите пользователя для удаления:', self)
+        self.selector_label.setFixedSize(200, 20)
+        self.selector_label.move(10, 0)
+
+        self.selector = QComboBox(self)
+        self.selector.setFixedSize(200, 20)
+        self.selector.move(10, 30)
+
+        self.btn_ok = QPushButton('Удалить', self)
+        self.btn_ok.setFixedSize(100, 30)
+        self.btn_ok.move(230, 20)
+
+        self.btn_cancel = QPushButton('Отмена', self)
+        self.btn_cancel.setFixedSize(100, 30)
+        self.btn_cancel.move(230, 60)
+        self.btn_cancel.clicked.connect(self.close)
 
         self.show()
 

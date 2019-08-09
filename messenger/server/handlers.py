@@ -7,7 +7,7 @@ from db.repository import Repository
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import QTimer
 from server_gui import MainWindow, gui_create_model, HistoryWindow, \
-    create_stat_model, ConfigWindow
+    create_stat_model, ConfigWindow, DelUserDialog
 
 conflag_lock = threading.Lock()
 
@@ -49,12 +49,12 @@ class Gui:
         main_window.active_clients_table.resizeRowsToContents()
 
         def list_update():
-            if server.new_connection:
+            if database.new_connection:
                 main_window.active_clients_table.setModel(gui_create_model(database))
                 main_window.active_clients_table.resizeColumnsToContents()
                 main_window.active_clients_table.resizeRowsToContents()
                 with conflag_lock:
-                    server.new_connection = False
+                    database.new_connection = False
 
         def show_statistics():
             global stat_window
@@ -63,6 +63,21 @@ class Gui:
             stat_window.history_table.resizeColumnsToContents()
             stat_window.history_table.resizeRowsToContents()
             stat_window.show()
+
+        def remove_user_dialog():
+            global rm_user_window
+            rm_user_window = DelUserDialog()
+            rm_user_window.selector.addItems(
+                [item for item in database.users_list()]
+            )
+            rm_user_window.btn_ok.clicked.connect(remove_user)
+
+        def remove_user():
+            global rm_user_window
+            user_name = rm_user_window.selector.currentText()
+            database.remove_user(user_name)
+            server.remove_client_by_name(user_name)
+            rm_user_window.close()
 
         def server_config():
             global config_window
@@ -102,5 +117,6 @@ class Gui:
         main_window.refresh_button.triggered.connect(list_update)
         main_window.show_history_button.triggered.connect(show_statistics)
         main_window.config_btn.triggered.connect(server_config)
+        main_window.remove_btn.triggered.connect(remove_user_dialog)
 
         server_app.exec_()

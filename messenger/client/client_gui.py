@@ -4,6 +4,10 @@ from PyQt5.QtWidgets import QListView, QMenuBar, QMenu, QStatusBar, QAction, \
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
 from PyQt5.QtCore import QSize, QMetaObject, QRect, pyqtSlot, Qt, QCoreApplication
 from exceptions import ServerError
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
+import base64
+from jim.utils import Message
 
 
 class Ui_MainClientWindow(object):
@@ -128,6 +132,8 @@ class ClientMainWindow(QMainWindow):
         self.history_model = None
         self.messages = QMessageBox()
         self.current_chat = None
+        self.current_chat_key = None
+        self.encryptor = None
         self.ui.list_messages.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.ui.list_messages.setWordWrap(True)
 
@@ -197,6 +203,21 @@ class ClientMainWindow(QMainWindow):
 
     # Функция устанавливающяя активного собеседника
     def set_active_user(self):
+        # Запрашиваем публичный ключ пользователя и создаём объект шифрования
+        try:
+            self.current_chat_key = self.transport.key_request(self.current_chat)
+            if self.current_chat_key:
+                self.encryptor = PKCS1_OAEP.new(RSA.import_key(self.current_chat_key))
+        except (OSError):
+            self.current_chat_key = None
+            self.encryptor = None
+
+        # Если ключа нет то ошибка, что не удалось начать чат с пользователем
+        if not self.current_chat_key:
+            self.messages.warning(self, 'Ошибка',
+                                  'Для выбранного пользователя нет ключа шифрования.')
+            return
+
         # Ставим надпись и активируем кнопки
         self.ui.label_new_message.setText(
             f'Введите сообщенние для {self.current_chat}:')
@@ -290,8 +311,11 @@ class ClientMainWindow(QMainWindow):
         self.ui.text_message.clear()
         if not message_text:
             return
+        message_text_encrypted = self.encryptor.encrypt(message_text.encode('utf8'))
+        message_text_encrypted_base64 = base64.b64encode(message_text_encrypted)
         try:
-            self.transport.send_message(self.current_chat, message_text)
+            self.transport.send_message(self.current_chat,
+                                        message_text_encrypted_base64.decode('ascii'))
         except ServerError as err:
             self.messages.critical(self, 'Ошибка', err.text)
         except OSError as err:
@@ -305,11 +329,26 @@ class ClientMainWindow(QMainWindow):
                                    'Потеряно соединение с сервером!')
             self.close()
         else:
+            if self.current_chat != self.transport.user_name:
+                self.database.save_message(self.current_chat, "out", message_text)
             self.history_list_update()
 
     # Слот приёма нового сообщений
-    @pyqtSlot(str)
-    def message(self, sender):
+    @pyqtSlot(Message)
+    def message(self, message):
+        sender = message.sender
+        # Получаем строку байтов
+        encrypted_message = base64.b64decode(message.text)
+        # Декодируем строку, при ошибке выдаём сообщение и завершаем функцию
+        try:
+            decrypted_message = self.transport.decrypter.decrypt(encrypted_message)
+        except (ValueError, TypeError):
+            self.messages.warning(self, 'Ошибка',
+                                  'Не удалось декодировать сообщение.')
+            return
+        # Сохраняем сообщение в базу и обновляем историю сообщений или открываем новый чат.
+        self.database.save_message(sender, 'in',
+                                   decrypted_message.decode('utf8'))
         if sender == self.current_chat:
             self.history_list_update()
         else:
@@ -352,7 +391,7 @@ class UserNameDialog(QDialog):
         self.ok_pressed = False
 
         self.setWindowTitle('Привет!')
-        self.setFixedSize(175, 93)
+        self.setFixedSize(175, 135)
 
         self.label = QLabel('Введите имя пользователя:', self)
         self.label.move(10, 10)
@@ -363,12 +402,21 @@ class UserNameDialog(QDialog):
         self.client_name.move(10, 30)
 
         self.btn_ok = QPushButton('Начать', self)
-        self.btn_ok.move(10, 60)
+        self.btn_ok.move(10, 105)
         self.btn_ok.clicked.connect(self.click)
 
         self.btn_cancel = QPushButton('Выход', self)
-        self.btn_cancel.move(90, 60)
+        self.btn_cancel.move(90, 105)
         self.btn_cancel.clicked.connect(qApp.exit)
+
+        self.label_passwd = QLabel('Введите пароль:', self)
+        self.label_passwd.move(10, 55)
+        self.label_passwd.setFixedSize(150, 15)
+
+        self.client_passwd = QLineEdit(self)
+        self.client_passwd.setFixedSize(154, 20)
+        self.client_passwd.move(10, 75)
+        self.client_passwd.setEchoMode(QLineEdit.Password)
 
         self.show()
 
@@ -412,7 +460,7 @@ class AddContactDialog(QDialog):
         self.btn_cancel.clicked.connect(self.close)
 
         # Заполняем список возможных контактов
-        self.possible_contacts_update()
+        self.update_possible_contacts()
         # Назначаем действие на кнопку обновить
         self.btn_refresh.clicked.connect(self.update_possible_contacts)
 
