@@ -1,23 +1,27 @@
 import socket
 import sys
-from threading import Thread, Lock
 from random import randint
-from jim.utils import Message, receive
-from jim.config import *
-from exceptions import *
-from client import Client, log_decorator
+from threading import Thread, Lock
+
 from Crypto.Cipher import PKCS1_OAEP
-from db.repository import Repository
-from client_gui import ClientMainWindow, UserNameDialog
-from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtWidgets import QApplication, QMessageBox
+
+from client import Client, log_decorator
+from client_gui import ClientMainWindow, UserNameDialog
+from db.repository import Repository
+from exceptions import *
+from jim.config import *
+from jim.utils import Message, receive
 
 socket_lock = Lock()
 
 
 class Console:
     __slots__ = ('__client', '__actions', '__listen_thread', '__repo')
-
+    """
+    Класс обработчика для консольного режима.
+    """
     def __init__(self, parsed_args):
         self.__client = Client((parsed_args.addr, parsed_args.port))
         self.__client.user_name, self.__client.password = \
@@ -60,7 +64,13 @@ class Console:
         )
 
     @staticmethod
-    def __validate_username(user_name, password):
+    def __validate_username(user_name: str, password: str) -> tuple:
+        """
+        Метод проверки корректности введенных имени и пароля.
+        :param user_name: Имя клиента
+        :param password: Пароль клиента
+        :return: Кортеж логин, пароль.
+        """
         while True:
             if user_name == 'Гость' or not user_name:
                 user_name = input('Введите своё имя: ') or \
@@ -79,7 +89,11 @@ class Console:
         return user_name, password
 
     @log_decorator
-    def interact(self):
+    def interact(self) -> Message:
+        """
+        Метод взаимодействия с пользователем.
+        :return:
+        """
         while True:
             try:
                 params = {}
@@ -116,12 +130,21 @@ class Console:
 
     @property
     def __help_info(self):
+        """
+        Метод, отображающий возможные действия.
+        :return:
+        """
         return '\n'.join([
             f'{key}. {action["name"]}'
             for key, action in enumerate(self.__actions, 0)
         ])
 
-    def key_request(self, user_name):
+    def key_request(self, user_name: str) -> str:
+        """
+        Метод получающий открытый ключ контакта с сервера.
+        :param user_name: Имя контакта
+        :return:
+        """
         data = {
             ACTION: PUBLIC_KEY_REQUEST,
             FROM: self.__client.user_name,
@@ -138,6 +161,10 @@ class Console:
                 f'Не удалось получить ключ собеседника{user_name}.')
 
     def main(self):
+        """
+        Главный метод, запускающий необходимые компоненты.
+        :return:
+        """
         action = self.__client.connect()
         if not action:
             raise ConnectionResetError
@@ -166,6 +193,12 @@ class Console:
             self.__client.close()
 
     def receiver(self, flag=1):
+        """
+        Метод запускающий получение и обработку сообщений.
+        Работает в отдельном потоке.
+        :param flag: Если передана не 1, то выполнит только 1 цикл.
+        :return:
+        """
         try:
             while True:
                 messages = []
@@ -183,7 +216,12 @@ class Console:
         except ConnectionResetError:
             self.__listen_thread.is_alive = False
 
-    def receive_callback(self, response):
+    def receive_callback(self, response: Message) -> Message:
+        """
+        Метод разбора ответа сервера.
+        :param response: Сообщение от сервера
+        :return:
+        """
         if isinstance(response, str):
             print(response)
         if response.action == GET_CONTACTS:
@@ -202,7 +240,9 @@ class Console:
 class Gui(QObject):
     new_message = pyqtSignal(Message)
     connection_lost = pyqtSignal()
-
+    """
+    Класс обработчика для консольного режима.
+    """
     def __init__(self, parsed_args):
         QObject.__init__(self)
         self.__client = Client((parsed_args.addr, parsed_args.port))
@@ -218,6 +258,10 @@ class Gui(QObject):
         self.__listen_thread.daemon = True
 
     def main(self):
+        """
+        Главный метод, запускающий необходимые компоненты.
+        :return:
+        """
         try:
             action = self.__client.connect()
             if not action:
@@ -244,6 +288,11 @@ class Gui(QObject):
             self.__client.close()
 
     def run(self):
+        """
+        Метод запускающий получение и обработку сообщений.
+        Работает в отдельном потоке.
+        :return:
+        """
         try:
             self.user_list_update()
             while True:
@@ -262,6 +311,12 @@ class Gui(QObject):
             self.connection_lost.emit()
 
     def __validate_username(self, user_name, password):
+        """
+        Метод проверки корректности введенных имени и пароля.
+        :param user_name: Имя клиента
+        :param password: Пароль клиента
+        :return:
+        """
         while True:
             if user_name == 'Гость' or not user_name or not password:
                 start_dialog = UserNameDialog()
@@ -287,6 +342,10 @@ class Gui(QObject):
         return user_name, password
 
     def user_list_update(self):
+        """
+        Метод, составляющий запрос на получение списка подключённых клиентов.
+        :return:
+        """
         self.__client.logger.debug(
             f'Запрос списка известных пользователей {self.__client.user_name}')
         data = {
@@ -295,6 +354,11 @@ class Gui(QObject):
         self.__client.send(Message(**data))
 
     def add_contact(self, contact):
+        """
+        Метод, составляющий запрос на добавление контакта.
+        :param contact: Имя контакта
+        :return:
+        """
         self.__client.logger.debug(f'Создание контакта {contact}')
         data = {
             ACTION: ADD_CONTACT,
@@ -304,6 +368,11 @@ class Gui(QObject):
 
     # Функция удаления клиента на сервере
     def remove_contact(self, contact):
+        """
+        Метод, составляющий запрос на удаление контакта
+        :param contact: Имя контакта
+        :return:
+        """
         self.__client.logger.debug(f'Удаление контакта {contact}')
         data = {
             ACTION: DEL_CONTACT,
@@ -312,10 +381,21 @@ class Gui(QObject):
         self.__client.send(Message(**data))
 
     def send_message(self, to, message):
+        """
+        Метод, составляющий запрос на отправку сообщения контакту.
+        :param to: Имя контакта
+        :param message: Сообщение
+        :return:
+        """
         data = {ACTION: SEND_MSG, TO: to, TEXT: message}
         self.__client.send(Message(**data))
 
     def key_request(self, user_name):
+        """
+        Метод, составляющий запрос на получение открытого ключа контакта.
+        :param user_name: Имя контакта
+        :return:
+        """
         data = {
             ACTION: PUBLIC_KEY_REQUEST,
             FROM: self.user_name,
@@ -331,7 +411,12 @@ class Gui(QObject):
             self.__client.logger.error(
                 f'Не удалось получить ключ собеседника{user_name}.')
 
-    def receive_callback(self, response):
+    def receive_callback(self, response: Message) -> Message:
+        """
+        Метод разбора ответа сервера.
+        :param response: Сообщение от сервера.
+        :return:
+        """
         if isinstance(response, str):
             self.connection_lost.emit()
         if response.action == GET_CONNECTED:

@@ -222,17 +222,3 @@ class Repository:
         query = self.session.query(User.name, User.last_login, User.sent,
                                    User.receive)
         return query.all()
-
-
-if __name__ == '__main__':
-    test_db = Repository()
-    test_db.user_login('client_1', '192.168.1.4')
-    test_db.user_login('client_2', '192.168.1.5')
-    test_db.add_contact('client_1', 'client_2')
-    print(test_db.users_list(active=True))
-    test_db.user_logout('client_1')
-    print(test_db.users_list(active=True))
-    print(test_db.login_history('client_1'))
-    print(test_db.users_list())
-    print(test_db.get_contact_list('client_1'))
-    print(test_db.get_contact_list('client_2'))

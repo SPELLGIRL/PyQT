@@ -1,10 +1,14 @@
 import json
 import time
+
 from settings import ENCODING, MAX_PACKAGE_LENGTH
 from .config import *
 
 
 class Message:
+    """
+    Класс сообщения.
+    """
     def __init__(self, data=None, **kwargs):
         if data:
             if isinstance(data, dict):
@@ -70,7 +74,7 @@ class Message:
         return self.__raw.get(TEXT)
 
 
-def error(text, **kwargs):
+def error(text, **kwargs) -> Message:
     data = {
         RESPONSE: WRONG_REQUEST,
         ACTION: ERROR,
@@ -79,24 +83,32 @@ def error(text, **kwargs):
     return Message(data, **kwargs)
 
 
-def success(**kwargs):
+def success(**kwargs) -> Message:
     data = {
         RESPONSE: OK,
     }
     return Message(data, **kwargs)
 
 
-def accepted(**kwargs):
+def accepted(**kwargs) -> Message:
     data = {RESPONSE: ACCEPTED}
     return Message(data, **kwargs)
 
 
-def forbidden(**kwargs):
+def forbidden(**kwargs) -> Message:
     data = {RESPONSE: FORBIDDEN}
     return Message(data, **kwargs)
 
 
-def receive(sock, logger):
+def receive(sock, logger) -> list:
+    """
+    Функция приёма сообщений от удалённых компьютеров.
+    Принимает сообщения JSON, декодирует полученное сообщение
+    и проверяет что получен словарь.
+    :param sock: сокет для передачи данных.
+    :param logger: логгер
+    :return: список сообщений
+    """
     requests = []
     try:
         bytes_response = sock.recv(MAX_PACKAGE_LENGTH)

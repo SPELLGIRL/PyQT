@@ -2,6 +2,11 @@ import dis
 
 
 class ClientVerifier(type):
+    """
+    Метакласс, проверяющий что в результирующем классе нет серверных
+    вызовов таких как: accept, listen. Также проверяется, что сокет не
+    создаётся внутри конструктора класса.
+    """
     def __init__(cls, clsname, bases, clsdict):
         methods = []
         for func in clsdict:

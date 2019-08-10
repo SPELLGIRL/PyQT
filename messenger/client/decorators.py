@@ -1,5 +1,5 @@
-from functools import wraps
 import traceback
+from functools import wraps
 
 
 class Log:

@@ -1,4 +1,5 @@
 import datetime
+
 from sqlalchemy import Column, String, Integer, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -6,6 +7,9 @@ Base = declarative_base()
 
 
 class Contact(Base):
+    """
+    Класс - таблица контактов.
+    """
     __tablename__ = 'contact'
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -18,6 +22,9 @@ class Contact(Base):
 
 
 class ConnectedUser(Base):
+    """
+    Класс - таблица подключённых пользователей.
+    """
     __tablename__ = 'connecteduser'
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -30,6 +37,9 @@ class ConnectedUser(Base):
 
 
 class MessageHistory(Base):
+    """
+    Класс - таблица истории сообщений.
+    """
     __tablename__ = 'history'
     id = Column(Integer, primary_key=True)
     contact = Column(String)

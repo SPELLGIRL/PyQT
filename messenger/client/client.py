@@ -9,30 +9,35 @@
 - port ​-​ ​t​cp-порт ​​на ​с​ервере, ​​по ​у​молчанию ​​8000.
 """
 
-import socket
-import os
-import time
+import binascii
 import hashlib
 import hmac
-import binascii
-from Crypto.PublicKey import RSA
+import os
+import socket
+import time
 from argparse import ArgumentParser
-from settings import DEFAULT_PORT, DEFAULT_IP
+
+from Crypto.PublicKey import RSA
+
+from decorators import Log
+from descriptors import Port
 from exceptions import ResponseCodeLenError, MandatoryKeyError, \
     ResponseCodeError, ServerError
 from jim.config import *
 from jim.utils import Message, receive
-from decorators import Log
 from log.config import client_logger
 from metaclasses import ClientVerifier
-from descriptors import Port
+from settings import DEFAULT_PORT, DEFAULT_IP
 
 log_decorator = Log(client_logger)
 
 
 class Client(metaclass=ClientVerifier):
     port = Port()
-
+    """
+    Класс реализующий транспортную подсистему клиентского
+    модуля. Отвечает за взаимодействие с сервером.
+    """
     def __init__(self, address):
         self.__logger = client_logger
         self.__addr, self.__port = address
@@ -47,32 +52,41 @@ class Client(metaclass=ClientVerifier):
 
     @property
     def user_name(self):
+        """Отображение имени пользователя"""
         return self.__user_name
 
     @user_name.setter
     def user_name(self, value):
+        """Установка имени пользователя"""
         if self.__user_name is None:
             self.__user_name = value
 
     @property
     def password(self):
+        """Отображение хэша пароля пользователя"""
         return self.__password
 
     @password.setter
     def password(self, value):
+        """Установка хэша пароля из БД"""
         if self.__password is None:
             self.__password = value
 
     @property
     def logger(self):
+        """логгер"""
         return self.__logger
 
     @property
     def sock(self):
+        """Сокет пользователя"""
         return self.__sock
 
     def create_keys(self):
-        # Загружаем ключи с файла, если же файла нет, то генерируем новую пару.
+        """
+        Метод загрузки ключей из файла или их создания, если файла нет.
+        :return:
+        """
         dir_path = os.path.dirname(os.path.abspath(__file__))
         keys_path = os.path.join(dir_path, 'keys')
         key_file = os.path.join(keys_path, f'{self.user_name}.key')
@@ -90,6 +104,7 @@ class Client(metaclass=ClientVerifier):
         return keys
 
     def __check_presence(self):
+        """Метод проверки соединения"""
         data = {ACTION: PRESENCE, FROM: self.__user_name}
         request = Message(data)
         self.send(request)
@@ -98,6 +113,7 @@ class Client(metaclass=ClientVerifier):
             else False
 
     def load_contacts(self):
+        """Метод загрузки списка контактов"""
         data = {ACTION: GET_CONTACTS, FROM: self.user_name}
         request = Message(data)
         self.send(request)
@@ -107,6 +123,7 @@ class Client(metaclass=ClientVerifier):
 
     @staticmethod
     def check_response(response):
+        """Метод проверки корректности запроса"""
         if not isinstance(response, Message):
             raise TypeError
         if not getattr(response, RESPONSE):
@@ -120,6 +137,10 @@ class Client(metaclass=ClientVerifier):
 
     @log_decorator
     def connect(self):
+        """
+        Метод отвечающий за установку соединения с сервером.
+        :return:
+        """
         result = False
         for i in range(5):
             try:
@@ -140,7 +161,8 @@ class Client(metaclass=ClientVerifier):
                 time.sleep(1)
         return result
 
-    def auth(self, response):
+    def auth(self, response: Message):
+        """Метод, отвечающий за авторизацию на сервере"""
         if response.action == REGISTER or response.action == AUTH:
             try:
                 if response.action == REGISTER:
@@ -192,24 +214,39 @@ class Client(metaclass=ClientVerifier):
             except OSError:
                 raise ServerError('Сбой соединения в процессе авторизации.')
 
-    def send(self, message):
+    def send(self, message: Message):
+        """
+        Метод, отправляющий сообщение серверу.
+        :param message:
+        :return:
+        """
         self.__logger.info(f'Отправлено: {str(message)}.')
         return self.__sock.send(bytes(message))
 
     def close(self):
+        """
+        Метод закрытия соединения с сервером.
+        :return:
+        """
         self.__sock.close()
 
 
-def parse_args():
+def parse_args(default_ip: str = DEFAULT_IP, default_port: int = DEFAULT_PORT):
+    """
+    Парсер аргументов коммандной строки.
+    :param default_ip: IP адрес сервера
+    :param default_port: Порт сервера
+    :return:
+    """
     parser = ArgumentParser(description='Запуск клиента.')
     parser.add_argument('addr',
                         nargs='?',
-                        default=f'{DEFAULT_IP}',
+                        default=f'{default_ip}',
                         type=str,
                         help='IP адрес сервера')
     parser.add_argument('port',
                         nargs='?',
-                        default=f'{DEFAULT_PORT}',
+                        default=f'{default_port}',
                         type=int,
                         help='порт сервера')
     parser.add_argument('-u',
