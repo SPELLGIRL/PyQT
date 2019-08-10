@@ -1,17 +1,22 @@
 import datetime
+
 from sqlalchemy import Column, Table, String, Integer, Boolean, ForeignKey, \
     DateTime, Text
-from sqlalchemy.orm import *
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import *
 
 Base = declarative_base()
 
+# Таблица контактов.
 contact_table = Table('contact', Base.metadata,
                       Column('user_id', Integer, ForeignKey('user.id')),
                       Column('contact_id', Integer, ForeignKey('user.id')))
 
 
 class User(Base):
+    """
+    Класс - таблица пользователей.
+    """
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -40,6 +45,9 @@ class User(Base):
 
 
 class History(Base):
+    """
+    Класс - таблица истории пользователей.
+    """
     __tablename__ = 'history'
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('user.id'))

@@ -2,6 +2,11 @@ import dis
 
 
 class ServerVerifier(type):
+    """
+    Метакласс, проверяющий что в результирующем классе нет клиентских
+    вызовов таких как: connect. Также проверяется, что серверный
+    сокет является TCP и работает по IPv4 протоколу.
+    """
     def __init__(cls, clsname, bases, clsdict):
         methods = []
         attrs = []

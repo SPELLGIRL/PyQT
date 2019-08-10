@@ -8,6 +8,11 @@ from PyQt5.QtCore import Qt
 
 
 def gui_create_model(database):
+    """
+    Метод заполняющий таблицу активных пользователей.
+    :param database: БД
+    :return:
+    """
     while True:
         try:
             list_users = database.users_list(active=True)
@@ -32,6 +37,11 @@ def gui_create_model(database):
 
 
 def create_stat_model(database):
+    """
+    Метод реализующий заполнение таблицы статистикой сообщений.
+    :param database:
+    :return:
+    """
     hist_list = database.message_history()
 
     qt_list = QStandardItemModel()
@@ -57,6 +67,9 @@ def create_stat_model(database):
 
 
 class MainWindow(QMainWindow):
+    """
+    Класс - основное окно сервера.
+    """
     def __init__(self):
         super().__init__()
         exit_action = QAction('Выход', self)
@@ -91,6 +104,9 @@ class MainWindow(QMainWindow):
 
 
 class HistoryWindow(QDialog):
+    """
+    Класс - окно с историей пользователей
+    """
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Статистика клиентов')
@@ -109,6 +125,9 @@ class HistoryWindow(QDialog):
 
 
 class ConfigWindow(QDialog):
+    """
+    Класс окно настроек.
+    """
     def __init__(self):
         super().__init__()
         self.setFixedSize(365, 260)
@@ -126,14 +145,9 @@ class ConfigWindow(QDialog):
         self.db_path_select = QPushButton('Обзор...', self)
         self.db_path_select.move(275, 28)
 
-        def open_file_dialog():
-            global dialog
-            dialog = QFileDialog(self)
-            path = dialog.getExistingDirectory()
-            path = path.replace('/', '\\')
-            self.db_path.insert(path)
+        self.dialog = None
 
-        self.db_path_select.clicked.connect(open_file_dialog)
+        self.db_path_select.clicked.connect(self.open_file_dialog)
 
         self.db_file_label = QLabel('Имя файла базы данных: ', self)
         self.db_file_label.move(10, 68)
@@ -175,8 +189,21 @@ class ConfigWindow(QDialog):
 
         self.show()
 
+    def open_file_dialog(self):
+        """
+        Метод обработчик открытия окна выбора папки.
+        :return:
+        """
+        self.dialog = QFileDialog(self)
+        path = self.dialog.getExistingDirectory()
+        path = path.replace('/', '\\')
+        self.db_path.insert(path)
+
 
 class DelUserDialog(QDialog):
+    """
+    Класс - диалог выбора контакта для удаления.
+    """
     def __init__(self):
         super().__init__()
 

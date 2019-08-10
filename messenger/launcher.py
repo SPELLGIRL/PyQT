@@ -1,10 +1,13 @@
+import os
 import subprocess
 import time
-import os
 from argparse import ArgumentParser
 
 
 class Launcher:
+    """
+    Основной класс лаунчера.
+    """
     def __init__(self, num, start, sm, cm):
         self.__server = None
         self.__clients = []
@@ -21,11 +24,19 @@ class Launcher:
             self.run()
 
     @property
-    def __help_info(self):
+    def __help_info(self) -> str:
+        """
+        Вывод списка возможных действий.
+        :return:
+        """
         return '\n'.join(
             [f'{key} - {action}' for key, action in self.__actions.items()])
 
     def main(self):
+        """
+        Метод, описывающий команды управления запуском.
+        :return:
+        """
         print(self.__help_info)
         while True:
             action = input('Выберите действие: ')
@@ -45,6 +56,10 @@ class Launcher:
                 print(self.__help_info)
 
     def run(self):
+        """
+        Основной метод, запускающий окна программ.
+        :return:
+        """
         self.close()
         time.sleep(1)
         print('Запускаем сервер...')
@@ -68,6 +83,10 @@ class Launcher:
         time.sleep(10)
 
     def close(self):
+        """
+        Метод, закрывающий окна программ.
+        :return:
+        """
         while self.__clients:
             process = self.__clients.pop()
             process.kill()
@@ -76,6 +95,10 @@ class Launcher:
 
 
 def parse_args():
+    """
+    Парсер аргументов коммандной строки.
+    :return:
+    """
     parser = ArgumentParser(description='Запуск сервера.')
     parser.add_argument('-n',
                         '--num',
@@ -107,6 +130,10 @@ def parse_args():
 
 
 def run():
+    """
+    Функция запуска.
+    :return:
+    """
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     args = parse_args()
     launcher = Launcher(args.num, args.run, args.sm, args.cm)

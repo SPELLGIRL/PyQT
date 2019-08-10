@@ -9,31 +9,35 @@
 - -a ​​<addr> ​-​ ​I​P-адрес ​​для ​​прослушивания ​
 (​по ​у​молчанию ​с​лушает ​​все ​​доступные ​​адреса).
 """
+import binascii
+import hashlib
+import hmac
+import os
 import select
-from argparse import ArgumentParser
-from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
 import socket
 import threading
-import hmac
-import hashlib
-import binascii
-import os
-from jim.utils import Message, receive, accepted, success, error, forbidden
-from jim.config import *
-from log.config import server_logger
+from argparse import ArgumentParser
+
 from decorators import Log, login_required
-from metaclasses import ServerVerifier
 from descriptors import Port
+from jim.config import *
+from jim.utils import Message, receive, accepted, success, error, forbidden
+from log.config import server_logger
+from metaclasses import ServerVerifier
+from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
 
 log_decorator = Log(server_logger)
 conflag_lock = threading.Lock()
 
 
 class Dispatcher:
+    """
+    Класс диспетчер клиента.
+    """
     __slots__ = ('sock', 'user_name', '__logger', '__repo', '__in', '__out',
                  'status', 'random_str', 'ip')
 
-    def __init__(self, sock, ip, repository):
+    def __init__(self, sock, ip: str, repository):
         self.sock = sock
         self.user_name = None
         self.ip = ip
@@ -48,14 +52,27 @@ class Dispatcher:
         self.process()
         self.release()
 
-    def create_digest(self, password):
-        # Создаём хэш пароля и связки с рандомной строкой,
-        # сохраняем серверную версию ключа
+    def create_digest(self, password: str):
+        """
+        Метод создаёт хэш пароля и связки с рандомной строкой,
+        сохраняет серверную версию ключа
+        :param password: Хэш пароля пользователя
+        :return: Связка хэша с рандомной строкой
+        """
         hash_str = hmac.new(password, self.random_str)
         return hash_str.digest()
 
-    def auth(self, request):
-        def auth_request():
+    def auth(self, request: Message) -> Message:
+        """
+        Метод, проводящий авторизацию пользователя
+        :param request:
+        :return:
+        """
+        def auth_request() -> dict:
+            """
+            Функция, создающая словарь для запроса авторизации.
+            :return:
+            """
             auth_data = {ACTION: AUTH, TEXT: self.random_str.decode('ascii')}
             return auth_data
 
@@ -96,12 +113,20 @@ class Dispatcher:
                 return forbidden(text='Неверный пароль.')
 
     def receive(self):
+        """
+        Метод, принимающий сообщения от клиента
+        :return:
+        """
         requests = receive(self.sock, self.__logger)
         if not requests:
             raise Exception
         self.__in.extend(requests)
 
     def process(self):
+        """
+        Метод, запускающий обработку сообщений клиента
+        :return:
+        """
         while len(self.__in):
             request = self.__in.pop()
             if not request.sender:
@@ -113,7 +138,12 @@ class Dispatcher:
                 self.__out.extend(response)
 
     @login_required
-    def run_action(self, request):
+    def run_action(self, request: Message):
+        """
+        Метод, обрабатывающий сообщения от клиента
+        :param request: Сообщение клиента
+        :return: Созданные ответы
+        """
         if request.action in (PRESENCE, REGISTER, AUTH):
             return self.auth(request)
         elif request.action == SEND_MSG:
@@ -182,7 +212,12 @@ class Dispatcher:
         else:
             return error('Действие недоступно')
 
-    def release(self, names=None):
+    def release(self, names: list = None):
+        """
+        Метод, отсылающий ответы клиенту
+        :param names: Список подключенных клиентов
+        :return:
+        """
         while len(self.__out):
             response = self.__out.pop(0)
             if response.destination:
@@ -196,8 +231,11 @@ class Dispatcher:
 
 class Server(threading.Thread, metaclass=ServerVerifier):
     __port = Port()
-
-    def __init__(self, address, database):
+    """
+    Основной класс сервера. Принимает содинения, словари - пакеты от клиентов, 
+    обрабатывает поступающие сообщения. Работает в качестве отдельного потока.
+    """
+    def __init__(self, address: str, database):
         self.__logger = server_logger
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__repo = database
@@ -219,6 +257,10 @@ class Server(threading.Thread, metaclass=ServerVerifier):
         super().__init__()
 
     def run(self):
+        """
+        Метод основной цикл потока.
+        :return:
+        """
         try:
             for user in self.__repo.users_list():
                 self.__repo.user_logout(user)
@@ -254,7 +296,12 @@ class Server(threading.Thread, metaclass=ServerVerifier):
             self.__logger.info(info_msg)
             print(info_msg)
 
-    def __input(self, clients):
+    def __input(self, clients: list):
+        """
+        Метод, запускающий процессы получения сообщений.
+        :param clients: Список подключенных клиентов
+        :return:
+        """
         for sock in clients:
             try:
                 dispatcher = self.__socket_dispatcher[sock]
@@ -264,12 +311,21 @@ class Server(threading.Thread, metaclass=ServerVerifier):
                 self.__remove_client(sock)
 
     def __process(self):
+        """
+        Метод, запускающий процессы обработки сообщений.
+        :return:
+        """
         while len(self.__in):
             dispatcher = self.__in.pop()
             dispatcher.process()
             self.__out.append(dispatcher)
 
-    def __output(self, clients):
+    def __output(self, clients: list):
+        """
+        Метод, запускающий процессы отправки ответов.
+        :param clients: Список подключенных клиентов.
+        :return:
+        """
         while len(self.__out):
             dispatcher = self.__out.pop()
             try:
@@ -281,6 +337,12 @@ class Server(threading.Thread, metaclass=ServerVerifier):
                 self.__remove_client(dispatcher.sock)
 
     def __remove_client(self, client):
+        """
+        Метод обработчик клиента с которым прервана связь.
+        Ищет клиента и удаляет его из списков и базы.
+        :param client: Сокет клиента
+        :return:
+        """
         self.__client_sockets.remove(client)
         name = self.__socket_dispatcher.pop(client)
         self.__name_socket.pop(name.user_name)
@@ -292,16 +354,32 @@ class Server(threading.Thread, metaclass=ServerVerifier):
         self.__logger.info(info_msg)
         client.close()
 
-    def remove_client_by_name(self, user_name):
+    def remove_client_by_name(self, user_name: str):
+        """
+        Метод ищет клиента по имени и запускает для него метод удаления.
+        :param user_name:
+        :return:
+        """
         sock = self.__name_socket.get(user_name)
         if sock:
             self.__remove_client(sock)
 
     def __user_name(self, client):
+        """
+        Метод получения имени клиента по сокету.
+        :param client:
+        :return:
+        """
         return self.__socket_dispatcher[client].user_name
 
 
-def parse_args(default_ip=DEFAULT_IP, default_port=DEFAULT_PORT):
+def parse_args(default_ip: str = DEFAULT_IP, default_port: int = DEFAULT_PORT):
+    """
+    Парсер аргументов коммандной строки.
+    :param default_ip: IP адрес интерфейса
+    :param default_port: Порт сервера
+    :return:
+    """
     parser = ArgumentParser(description='Запуск сервера.')
     parser.add_argument('-a',
                         nargs='?',

@@ -1,5 +1,5 @@
-from functools import wraps
 import traceback
+from functools import wraps
 
 from jim.config import PRESENCE
 from jim.utils import Message
@@ -85,8 +85,10 @@ class Log:
         return message
 
 
-# Функция проверки, что клиент авторизован на сервере
 def login_required(func):
+    """
+    Функция декоратор для проверки того, что клиент авторизован на сервере
+    """
     def checker(*args, **kwargs):
         from server import Dispatcher
         if isinstance(args[0], Dispatcher):
