@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt
 
 def gui_create_model(database):
     """
-    Метод заполняющий таблицу активных пользователей.
+    Функция, заполняющяя таблицу активных пользователей.
     :param database: БД
     :return:
     """
@@ -38,7 +38,7 @@ def gui_create_model(database):
 
 def create_stat_model(database):
     """
-    Метод реализующий заполнение таблицы статистикой сообщений.
+    Функция, реализующяя заполнение таблицы статистикой сообщений.
     :param database:
     :return:
     """

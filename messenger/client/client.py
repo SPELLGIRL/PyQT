@@ -1,12 +1,12 @@
 """
-Функции ​к​лиента:​
+Функции ​клиента:​
 - сформировать ​​presence-сообщение;
-- отправить ​с​ообщение ​с​ерверу;
-- получить ​​ответ ​с​ервера;
-- разобрать ​с​ообщение ​с​ервера;
-- параметры ​к​омандной ​с​троки ​с​крипта ​c​lient ​​<addr> ​[​<port>]:
-- addr ​-​ ​i​p-адрес ​с​ервера;
-- port ​-​ ​t​cp-порт ​​на ​с​ервере, ​​по ​у​молчанию ​​8000.
+- отправить ​сообщение ​с​ерверу;
+- получить ответ сервера;
+- разобрать с​ообщение ​с​ервера;
+- параметры командной строки скрипта client <addr> [<port>]:
+- addr - ip-адрес сервера;
+- port -​tcp-порт на сервере, по умолчанию 8000.
 """
 
 import binascii
@@ -19,25 +19,24 @@ from argparse import ArgumentParser
 
 from Crypto.PublicKey import RSA
 
-from decorators import Log
-from descriptors import Port
+from c_decorators import Log
+from c_descriptors import Port
 from exceptions import ResponseCodeLenError, MandatoryKeyError, \
     ResponseCodeError, ServerError
 from jim.config import *
 from jim.utils import Message, receive
-from log.config import client_logger
-from metaclasses import ClientVerifier
-from settings import DEFAULT_PORT, DEFAULT_IP
+from clog.config import client_logger
+from c_metaclasses import ClientVerifier
+from c_settings import DEFAULT_PORT, DEFAULT_IP
 
 log_decorator = Log(client_logger)
 
 
 class Client(metaclass=ClientVerifier):
+    """Основной_класс_клиентского_модуля, отвечает_за_связь_с_сервером"""
+
     port = Port()
-    """
-    Класс реализующий транспортную подсистему клиентского
-    модуля. Отвечает за взаимодействие с сервером.
-    """
+
     def __init__(self, address):
         self.__logger = client_logger
         self.__addr, self.__port = address

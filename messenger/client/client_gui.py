@@ -123,6 +123,9 @@ class ClientMainWindow(QMainWindow):
         # Загружаем конфигурацию окна
         self.ui = UiMainClientWindow(self)
 
+        self.select_dialog = None
+        self.remove_dialog = None
+
         # Кнопка "Выход"
         self.ui.menu_exit.triggered.connect(qApp.exit)
 
@@ -277,11 +280,10 @@ class ClientMainWindow(QMainWindow):
         Метод создающий окно - диалог добавления контакта.
         :return:
         """
-        global select_dialog
-        select_dialog = AddContactDialog(self.transport, self.database)
-        select_dialog.btn_ok.clicked.connect(
-            lambda: self.add_contact_action(select_dialog))
-        select_dialog.show()
+        self.select_dialog = AddContactDialog(self.transport, self.database)
+        self.select_dialog.btn_ok.clicked.connect(
+            lambda: self.add_contact_action(self.select_dialog))
+        self.select_dialog.show()
 
     def add_contact_action(self, item):
         """
@@ -324,11 +326,10 @@ class ClientMainWindow(QMainWindow):
         Метод создающий окно удаления контакта.
         :return:
         """
-        global remove_dialog
-        remove_dialog = DelContactDialog(self.database)
-        remove_dialog.btn_ok.clicked.connect(
-            lambda: self.delete_contact(remove_dialog))
-        remove_dialog.show()
+        self.remove_dialog = DelContactDialog(self.database)
+        self.remove_dialog.btn_ok.clicked.connect(
+            lambda: self.delete_contact(self.remove_dialog))
+        self.remove_dialog.show()
 
     def delete_contact(self, item):
         """

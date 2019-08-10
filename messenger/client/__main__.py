@@ -1,5 +1,5 @@
 from client import parse_args
-from handlers import Console, Gui
+from c_handlers import Console, Gui
 
 
 def run():

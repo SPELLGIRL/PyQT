@@ -1,13 +1,13 @@
 """
 Функции ​​сервера:​
-- принимает ​с​ообщение ​к​лиента;
-- формирует ​​ответ ​к​лиенту;
-- отправляет ​​ответ ​к​лиенту;
-- имеет ​​параметры ​к​омандной ​с​троки:
-- -p ​​<port> ​-​ ​​TCP-порт ​​для ​​работы ​
-(​по ​у​молчанию ​​использует ​​порт ​​8000);
-- -a ​​<addr> ​-​ ​I​P-адрес ​​для ​​прослушивания ​
-(​по ​у​молчанию ​с​лушает ​​все ​​доступные ​​адреса).
+- принимает ​с​ообщение ​клиента;
+- формирует ​​ответ ​клиенту;
+- отправляет ​​ответ ​клиенту;
+- имеет ​​параметры ​командной ​строки:
+-p ​​<port> ​-​ ​​TCP-порт ​​для ​​работы ​
+(по ​умолчанию использует порт 8000);
+-a <addr> - I​P-адрес для прослушивания ​
+(по умолчанию слушает все доступные адреса).
 """
 import binascii
 import hashlib
@@ -18,13 +18,13 @@ import socket
 import threading
 from argparse import ArgumentParser
 
-from decorators import Log, login_required
-from descriptors import Port
+from s_decorators import Log, login_required
+from s_descriptors import Port
 from jim.config import *
 from jim.utils import Message, receive, accepted, success, error, forbidden
-from log.config import server_logger
-from metaclasses import ServerVerifier
-from settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
+from slog.config import server_logger
+from s_metaclasses import ServerVerifier
+from s_settings import DEFAULT_PORT, DEFAULT_IP, MAX_CONNECTIONS, TIMEOUT
 
 log_decorator = Log(server_logger)
 conflag_lock = threading.Lock()
@@ -231,10 +231,7 @@ class Dispatcher:
 
 class Server(threading.Thread, metaclass=ServerVerifier):
     __port = Port()
-    """
-    Основной класс сервера. Принимает содинения, словари - пакеты от клиентов, 
-    обрабатывает поступающие сообщения. Работает в качестве отдельного потока.
-    """
+
     def __init__(self, address: str, database):
         self.__logger = server_logger
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -258,7 +255,7 @@ class Server(threading.Thread, metaclass=ServerVerifier):
 
     def run(self):
         """
-        Метод основной цикл потока.
+        Метод, запускающий основной цикл программы.
         :return:
         """
         try:

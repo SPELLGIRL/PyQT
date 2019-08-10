@@ -1,4 +1,4 @@
-from handlers import Console, Gui
+from s_handlers import Console, Gui
 from server import parse_args
 
 
