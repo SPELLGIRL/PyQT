@@ -1,6 +1,6 @@
 Client module
 =============
 
-.. automodule:: client
+.. automodule:: client.client
    :members:
    :private-members:

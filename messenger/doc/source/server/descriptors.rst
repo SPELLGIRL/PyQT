@@ -1,7 +1,6 @@
-Server\_gui module
+Descriptors module
 ==================
 
-.. automodule:: server.server_gui
+.. automodule:: server.descriptors
    :members:
    :private-members:
-

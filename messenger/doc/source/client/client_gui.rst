@@ -1,6 +1,6 @@
 Client\_gui module
 ==================
 
-.. automodule:: client_gui
+.. automodule:: client.client_gui
    :members:
    :private-members:

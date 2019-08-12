@@ -29,13 +29,13 @@ Server package
 .. toctree::
    :maxdepth: 2
 
-   sdb
-   s_decorators
-   s_descriptors
-   s_handlers
-   jim
-   slog
-   s_metaclasses
    server
    server_gui
-   s_settings
+   handlers
+   decorators
+   descriptors
+   metaclasses
+   db
+   jim
+   log
+   settings

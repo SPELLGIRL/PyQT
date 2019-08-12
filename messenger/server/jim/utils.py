@@ -3,7 +3,7 @@
 import json
 import time
 
-from s_settings import ENCODING, MAX_PACKAGE_LENGTH
+from server.settings import ENCODING, MAX_PACKAGE_LENGTH
 from .config import *
 
 

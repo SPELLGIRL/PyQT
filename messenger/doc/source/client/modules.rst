@@ -47,12 +47,12 @@ Client package
 
    client
    client_gui
-   cdb
-   c_decorators
-   c_descriptors
+   handlers
+   decorators
+   descriptors
+   metaclasses
    exceptions
-   c_handlers
+   db
    jim
-   clog
-   c_metaclasses
-   c_settings
+   log
+   settings

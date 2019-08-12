@@ -1,6 +1,6 @@
 Server module
 =============
 
-.. automodule:: server
+.. automodule:: server.server
    :members:
    :private-members:

@@ -1,6 +1,6 @@
-Exceptions module
+Decorators module
 =================
 
-.. automodule:: client.exceptions
+.. automodule:: client.decorators
    :members:
    :private-members:

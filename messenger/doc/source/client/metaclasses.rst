@@ -1,7 +1,6 @@
-Server\_gui module
+Metaclasses module
 ==================
 
-.. automodule:: server.server_gui
+.. automodule:: client.metaclasses
    :members:
    :private-members:
-
