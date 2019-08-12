@@ -389,7 +389,7 @@ def parse_args(default_ip: str = DEFAULT_IP, default_port: int = DEFAULT_PORT):
                         type=int,
                         help='порт сервера в диапазоне от 1024 до 65535')
     parser.add_argument('-m',
-                        default='console',
+                        default='gui',
                         type=str.lower,
                         nargs='?',
                         choices=['gui', 'console'],

@@ -259,7 +259,7 @@ def parse_args(default_ip: str = DEFAULT_IP, default_port: int = DEFAULT_PORT):
                         help='Пароль пользователя')
     parser.add_argument('-m',
                         '--mode',
-                        default='console',
+                        default='gui',
                         type=str.lower,
                         nargs='?',
                         choices=['gui', 'console'],
