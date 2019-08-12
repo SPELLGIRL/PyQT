@@ -64,21 +64,24 @@ class Launcher:
         time.sleep(1)
         print('Запускаем сервер...')
         if self.__server_mode == 'gui':
-            self.__server = subprocess.Popen('python server -m gui')
+            self.__server = subprocess.Popen(
+                'python server/spell_messenger_server -m gui')
         else:
             self.__server = subprocess.Popen(
-                'python server', creationflags=subprocess.CREATE_NEW_CONSOLE)
+                'python server/spell_messenger_server',
+                creationflags=subprocess.CREATE_NEW_CONSOLE)
         time.sleep(2)
         print('Запускаем клиентов...')
         for i in range(self.__num):
             if self.__client_mode == 'gui':
                 self.__clients.append(
                     subprocess.Popen(
-                        f'python client -u test{i} -p test{i} -m gui'))
+                        f'python client/spell_messenger_client -u test{i} -p test{i} -m gui'
+                    ))
             else:
                 self.__clients.append(
                     subprocess.Popen(
-                        f'python client -u test{i} -p test{i}',
+                        f'python client/spell_messenger_client -u test{i} -p test{i}',
                         creationflags=subprocess.CREATE_NEW_CONSOLE))
         time.sleep(10)
 

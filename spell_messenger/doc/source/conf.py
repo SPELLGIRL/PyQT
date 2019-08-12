@@ -17,8 +17,8 @@ import sys
 
 path = os.path.dirname(os.path.abspath('../../launcher.py'))
 
-sys.path.insert(0, os.path.join(path, 'client'))
-sys.path.insert(0, os.path.join(path, 'server'))
+sys.path.insert(0, os.path.join(path, 'client/spell_messenger_client'))
+sys.path.insert(0, os.path.join(path, 'server/spell_messenger_server'))
 
 sys.path.insert(0, path)
 

@@ -45,6 +45,7 @@ Client package
 .. toctree::
    :maxdepth: 2
 
+   main
    client
    client_gui
    handlers

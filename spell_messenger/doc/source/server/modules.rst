@@ -29,6 +29,7 @@ Server package
 .. toctree::
    :maxdepth: 2
 
+   main
    server
    server_gui
    handlers
