@@ -6,7 +6,7 @@ setup(
     description="Spell messenger - Client package",
     author="Antonina Kletskina",
     author_email="chepushilka@yandex.ru",
-    url="http://www.blog.pythonlibrary.org",
+    url="https://github.com/SPELLGIRL/PyQT",
     packages=find_packages(exclude=[
         "*.tests", "*.tests.*", "tests.*", "tests", "*.server", "*.server.*",
         "server", "server"
