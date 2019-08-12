@@ -1,0 +1,5 @@
+pycryptodome
+pycryptodomex
+PyQt5
+SQLAlchemy
+Sphinx
